@@ -1,6 +1,6 @@
 // Gör att appen startar snabbt och kan installeras på hemskärmen.
 // Byt versionen när du laddar upp en ny version av appen.
-const VERSION = 'viktresan-v8';
+const VERSION = 'viktresan-v9';
 const FILES = [
   './', './index.html', './css/app.css', './manifest.webmanifest',
   './js/app.js', './js/config.js', './js/firebase.js', './js/data.js', './js/ui.js',
@@ -24,7 +24,7 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== location.origin) return;
   e.respondWith(
-    fetch(e.request)
+    fetch(e.request, { cache: 'no-cache' })
       .then((res) => {
         const copy = res.clone();
         caches.open(VERSION).then((c) => c.put(e.request, copy));
