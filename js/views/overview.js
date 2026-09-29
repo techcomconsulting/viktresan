@@ -1,5 +1,6 @@
 // Översikt: den enkla startsidan.
 import { loadEntries, loadFeed, getCard } from '../data.js';
+import { installBanner, wireInstallBanner } from '../install.js';
 import { esc, fmt1, signed, icon, bmi, bmiScale, dDay, dShort, round1, avatar } from '../ui.js';
 
 export function progressInfo(start, goal, current) {
@@ -54,11 +55,13 @@ export async function overviewView(el, ctx) {
 
   if (!last) {
     el.innerHTML = `<div class="screen">${header}
+      ${installBanner()}
       <div class="card stack-lg">
         <h2>Dags för första mätningen</h2>
         <p class="muted">Du mäter vikt, arm, midja, lår och höft. Det tar två minuter.</p>
         <a class="btn primary block" href="#/matning">Gör första mätningen</a>
       </div></div>`;
+    wireInstallBanner(el);
     return;
   }
 
@@ -103,5 +106,7 @@ export async function overviewView(el, ctx) {
       </a>
     </div>
     ${latest ? latestPost(latest, latestCard) : ''}
+    ${installBanner()}
   </div>`;
+  wireInstallBanner(el);
 }

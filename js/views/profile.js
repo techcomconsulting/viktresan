@@ -7,6 +7,7 @@ import {
   esc, fmt1, icon, avatar, openSheet, confirmSheet, toast, busy, errorText, parseNum, dShort, dFull, resizeImage, round1
 } from '../ui.js';
 import { progressInfo } from './overview.js';
+import { isInstalled, showInstall } from '../install.js';
 
 export async function profileView(el, ctx) {
   const { state } = ctx;
@@ -63,6 +64,7 @@ export async function profileView(el, ctx) {
 
       <section class="stack"><h2>Mer</h2>
         <div class="card flush">
+          ${isInstalled() ? '' : `<button class="list-row" data-home><img src="icons/icon-192.png" alt="" width="22" height="22" style="border-radius:6px"><span class="grow title" style="font-weight:600">Lägg till på hemskärmen</span>${icon('right', 18, 2)}</button>`}
           <a class="list-row" href="#/bilder"><span style="color:var(--accent)">${icon('camera')}</span><span class="grow title" style="font-weight:600">Bilder</span>${icon('right', 18, 2)}</a>
           <a class="list-row" href="#/behandling"><span style="color:var(--accent)">${icon('pill')}</span><span class="grow title" style="font-weight:600">Behandling</span>${icon('right', 18, 2)}</a>
           <a class="list-row" href="#/notiser"><span style="color:var(--accent)">${icon('bell')}</span><span class="grow title" style="font-weight:600">Notiser</span><span class="chip warn js-unread hidden"></span>${icon('right', 18, 2)}</a>
@@ -142,6 +144,7 @@ export async function profileView(el, ctx) {
       });
     });
 
+    el.querySelector('[data-home]')?.addEventListener('click', showInstall);
     el.querySelector('[data-logout]').addEventListener('click', async () => {
       await signOut(auth);
       location.hash = '#/login';

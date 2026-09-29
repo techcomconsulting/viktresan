@@ -2,6 +2,7 @@
 import { isConfigured, auth, onAuthStateChanged } from './firebase.js';
 import { getProfile, watchUnread, prefetch } from './data.js';
 import { icon, esc, $$ } from './ui.js';
+import './install.js';
 import { loginView, registerView, forgotView, onboardingView } from './views/auth.js';
 import { overviewView } from './views/overview.js';
 import { measureView, resultView } from './views/measure.js';
