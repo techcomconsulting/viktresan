@@ -127,7 +127,38 @@ function wirePerms(root, perms, rangeRef, onChange) {
   }));
 }
 
-// ---------- Delningssidan ----------
+// ---------- Flödet ----------
+
+export async function feedView(el, ctx) {
+  const { state } = ctx;
+  const me = state.user.uid;
+  const myName = state.profile.firstName;
+  const [feed, ownPosts, sh] = await Promise.all([loadFeed(me), loadMyPosts(me, 20), loadShares(me)]);
+  const incoming = sh.in.filter((s) => s.status === 'pending');
+  const all = [...feed, ...ownPosts].sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+  const cards = {};
+  await Promise.all([...new Set(feed.map((p) => p.owner))].map(async (u) => { cards[u] = await getCard(u); }));
+  const nameOf = (p) => cards[p.owner]?.firstName || p.ownerName || '';
+
+  el.innerHTML = `<div class="screen">
+    <div class="between"><h1>Flöde</h1><a class="btn outline sm" href="#/delning">${icon('users', 18)}Hantera delning</a></div>
+    ${incoming.length ? `<a class="banner pink row" href="#/delning" style="text-decoration:none">${icon('bell', 20)}<span class="grow"><b>${esc(incoming.map((s) => s.ownerName).join(', '))}</b> vill dela med dig</span>${icon('right', 18, 2)}</a>` : ''}
+    <button class="btn primary block" data-newpost>${icon('plus', 20, 2.2)}Nytt inlägg</button>
+    ${all.length ? all.map((p) => postCard(p, p.owner === me ? myName : nameOf(p), p.owner === me ? state.profile.avatar : cards[p.owner]?.avatar, me)).join('')
+      : '<div class="card empty">Här syns inlägg från dig och dem du delar med.<br>Tryck på Nytt inlägg för att skriva något.</div>'}
+  </div>`;
+
+  wirePosts(el, ctx, all);
+  el.querySelector('[data-newpost]').addEventListener('click', async () => {
+    const entries = await loadEntries(me).catch(() => []);
+    const last = entries[entries.length - 1] || null;
+    const prev = entries[entries.length - 2] || null;
+    const start = state.profile.startWeight ?? entries[0]?.weight;
+    openPostSheet(ctx, last, prev, start, false);
+  });
+}
+
+// ---------- Hantera delning ----------
 
 export async function sharingView(el, ctx) {
   const { state } = ctx;
@@ -141,13 +172,13 @@ export async function sharingView(el, ctx) {
     const mine = sh.out.filter((s) => s.status === 'active');
     const theirs = sh.in.filter((s) => s.status === 'active');
     const cards = {};
-    const [feed, ownPosts, groups] = await Promise.all([loadFeed(me), loadMyPosts(me, 10), loadGroups(me)]);
-    const ownerIds = [...new Set([...theirs.map((s) => s.owner), ...feed.map((p) => p.owner)])];
-    await Promise.all(ownerIds.map(async (u) => { cards[u] = await getCard(u); }));
-    const nameOf = (uid) => cards[uid]?.firstName || theirs.find((s) => s.owner === uid)?.ownerName || feed.find((p) => p.owner === uid)?.ownerName || '';
+    const groups = await loadGroups(me);
+    await Promise.all(theirs.map(async (s) => { cards[s.owner] = await getCard(s.owner); }));
+    const nameOf = (uid) => cards[uid]?.firstName || theirs.find((s) => s.owner === uid)?.ownerName || '';
 
     el.innerHTML = `<div class="screen">
-      <h1>Delning</h1>
+      ${backLink('#/flode', 'Flöde')}
+      <h1>Hantera delning</h1>
       <div class="banner soft row">${icon('lock', 22)}<span style="font-size:14px">Allt är privat. Du väljer vad var och en får se.</span></div>
       <form class="stack" data-invite novalidate>
         <label for="inv" style="font-size:14px;font-weight:600">Bjud in med e-post eller användarnamn</label>
@@ -173,16 +204,8 @@ export async function sharingView(el, ctx) {
           : '<p class="small muted">Gör en grupp, till exempel "Familjen", och välj den när du skriver ett inlägg.</p>'}
       </section>
 
-      ${feed.length ? `<section class="stack"><h2>Från andra</h2>${feed.map((p) => postCard(p, nameOf(p.owner), cards[p.owner]?.avatar, me)).join('')}</section>` : ''}
-
-      <section class="stack"><div class="between"><h2>Mina inlägg</h2><button class="btn primary sm" data-newpost>${icon('plus', 18, 2.2)}Nytt inlägg</button></div>
-        ${ownPosts.length ? ownPosts.map((p) => postCard(p, myName, state.profile.avatar, me)).join('') : '<div class="card empty">Här syns det du delar. Tryck på Nytt inlägg för att skriva något.</div>'}
-      </section>
-
       ${!mine.length && !waiting.length && !theirs.length && !incoming.length ? '<p class="small muted">Du delar inte med någon än. Ingen kan se något av det du sparar.</p>' : ''}
     </div>`;
-
-    wirePosts(el, ctx, [...feed, ...ownPosts]);
 
     const openGroup = async (g) => {
       const people = await loadPeople(me);
@@ -213,14 +236,6 @@ export async function sharingView(el, ctx) {
     };
     el.querySelector('[data-newgroup]').addEventListener('click', () => openGroup(null));
     el.querySelectorAll('[data-group]').forEach((b) => b.addEventListener('click', () => openGroup(groups.find((g) => g.id === b.dataset.group))));
-
-    el.querySelector('[data-newpost]').addEventListener('click', async () => {
-      const entries = await loadEntries(me).catch(() => []);
-      const last = entries[entries.length - 1] || null;
-      const prev = entries[entries.length - 2] || null;
-      const start = state.profile.startWeight ?? entries[0]?.weight;
-      openPostSheet(ctx, last, prev, start, false);
-    });
 
     el.querySelector('[data-invite]').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -284,7 +299,7 @@ export async function sharePermsView(el, ctx, id) {
   const count = () => PERMS.filter(([k]) => perms[k]).length;
 
   el.innerHTML = `<div class="screen">
-    ${backLink('#/delning', 'Delning')}
+    ${backLink('#/delning', 'Hantera delning')}
     <div class="row" style="gap:14px">${avatar(s.viewerName, null, 56)}
       <div class="stack" style="gap:2px"><h1 style="font-size:24px">Vad får ${esc(s.viewerName)} se?</h1><span class="muted small" data-count></span></div></div>
     ${s.status === 'pending' ? `<div class="banner neutral" style="font-size:14px">${esc(s.viewerName)} har inte svarat än.</div>` : ''}
@@ -311,7 +326,7 @@ export async function personView(el, ctx, owner) {
   const me = ctx.state.user.uid;
   const share = await getShare(owner + '_' + me);
   if (!share || share.status !== 'active') {
-    el.innerHTML = `<div class="screen">${backLink('#/delning', 'Delning')}<div class="card empty">Den här personen delar inget med dig just nu.</div></div>`;
+    el.innerHTML = `<div class="screen">${backLink('#/delning', 'Hantera delning')}<div class="card empty">Den här personen delar inget med dig just nu.</div></div>`;
     return;
   }
   const P = share.perms || {};
@@ -372,7 +387,7 @@ export async function personView(el, ctx, owner) {
   if (P.posts || posts.length) parts.push(`<section class="stack"><h2>Inlägg</h2>${posts.length ? posts.map((p) => postCard(p, name, card?.avatar, me)).join('') : '<div class="card empty">Inga inlägg än.</div>'}</section>`);
 
   el.innerHTML = `<div class="screen">
-    ${backLink('#/delning', 'Delning')}
+    ${backLink('#/delning', 'Hantera delning')}
     <div class="row" style="gap:14px">${avatar(name, card?.avatar, 56)}<div class="stack" style="gap:2px"><h1 style="font-size:26px">${esc(name)}</h1>
       <span class="small muted">Du ser bara det ${esc(name)} har valt att dela.</span></div></div>
     ${parts.join('') || '<div class="card empty">Inget delat än.</div>'}

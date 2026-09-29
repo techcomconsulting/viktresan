@@ -1,6 +1,6 @@
 // Översikt: den enkla startsidan.
-import { loadEntries, loadNotifications } from '../data.js';
-import { esc, fmt1, signed, icon, bmi, bmiScale, dDay, dShort, round1 } from '../ui.js';
+import { loadEntries, loadFeed, getCard } from '../data.js';
+import { esc, fmt1, signed, icon, bmi, bmiScale, dDay, dShort, round1, avatar } from '../ui.js';
 
 export function progressInfo(start, goal, current) {
   if (start == null || goal == null || current == null || start === goal) return null;
@@ -22,15 +22,27 @@ export function motivation(entries, start) {
   return '<strong>Fortsätt så.</strong> Vikten går upp och ner. Det viktiga är riktningen över tid.';
 }
 
+function latestPost(p, card) {
+  const name = card?.firstName || p.ownerName || '';
+  let text = p.text || '';
+  if (!text && p.dWeight != null) text = `${signed(p.dWeight, 'kg')} sedan förra mätningen`;
+  if (text.length > 70) text = text.slice(0, 68) + '…';
+  return `<a class="card row" href="#/flode" style="text-decoration:none;color:inherit;padding:12px 14px">
+    ${avatar(name, card?.avatar, 36)}
+    <span class="grow stack" style="gap:2px"><span class="small muted">Senaste från ${esc(name)} · ${esc(dShort(p.createdAt))}</span><span style="font-size:15px;line-height:1.35">${esc(text)}</span></span>
+    ${icon('right', 18, 2)}</a>`;
+}
+
 export async function overviewView(el, ctx) {
   const { state } = ctx;
   const uid = state.user.uid;
   const p = state.profile;
-  const [entries, notes] = await Promise.all([loadEntries(uid), loadNotifications(uid).catch(() => [])]);
+  const [entries, feed] = await Promise.all([loadEntries(uid), loadFeed(uid, 1).catch(() => [])]);
+  const latest = feed[0] || null;
+  const latestCard = latest ? await getCard(latest.owner) : null;
   const last = entries[entries.length - 1];
   const prev = entries[entries.length - 2];
   const start = p.startWeight ?? entries[0]?.weight;
-  const latestNote = notes.find((n) => !n.read);
 
   const header = `<header class="between">
     <div class="stack" style="gap:2px">
@@ -90,7 +102,6 @@ export async function overviewView(el, ctx) {
         <span class="small muted">${start ? signed((total / start) * 100, '%') : ''} sedan ${esc(dShort(entries[0].at))}</span>
       </a>
     </div>
-    ${latestNote ? `<a class="card row" href="#/notiser" style="text-decoration:none;color:inherit;padding:12px 14px">
-      <span class="grow" style="font-size:14px;line-height:1.35">${esc(latestNote.text)}</span>${icon('right', 18, 2)}</a>` : ''}
+    ${latest ? latestPost(latest, latestCard) : ''}
   </div>`;
 }

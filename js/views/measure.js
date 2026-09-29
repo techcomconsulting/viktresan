@@ -240,7 +240,7 @@ export async function openPostSheet(ctx, entry, prev, start, fresh = true) {
         await createPost(me, state.profile.firstName, data, audience);
         s.close();
         toast('Ditt inlägg är delat.');
-        ctx.go('/delning');
+        ctx.go('/flode');
       } catch (ex) { toast(errorText(ex)); }
     });
   });

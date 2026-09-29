@@ -280,7 +280,7 @@ export async function createPost(uid, name, data, audience = { type: 'shares', v
       const { out } = await loadShares(uid);
       to = out.filter((s) => s.status === 'active' && (audience.type === 'public' || s.perms?.posts)).map((s) => s.viewer);
     }
-    await Promise.all(to.map((v) => notify(v, `${name} har lagt till ett nytt inlägg.`, '#/delning')));
+    await Promise.all(to.map((v) => notify(v, `${name} har lagt till ett nytt inlägg.`, '#/flode')));
   } catch (e) { console.warn(e); }
 }
 
@@ -345,7 +345,7 @@ export async function setReaction(post, me, myName, kind) {
   await setDoc(ref, { kind, at: serverTimestamp() });
   if (post.owner !== me) {
     const emoji = REACTIONS.find((r) => r[0] === kind)?.[1] || '';
-    await notify(post.owner, `${myName} gav ${emoji} på ditt inlägg.`, '#/delning');
+    await notify(post.owner, `${myName} gav ${emoji} på ditt inlägg.`, '#/flode');
   }
 }
 
@@ -353,7 +353,7 @@ export async function addComment(post, me, myName, text) {
   await addDoc(collection(db, 'posts', post.id, 'comments'), {
     uid: me, name: myName, text, createdAt: serverTimestamp()
   });
-  if (post.owner !== me) await notify(post.owner, `${myName} har kommenterat ditt inlägg.`, '#/delning');
+  if (post.owner !== me) await notify(post.owner, `${myName} har kommenterat ditt inlägg.`, '#/flode');
 }
 
 // Flyttar inlägg från den gamla platsen (första versionen) till den nya.

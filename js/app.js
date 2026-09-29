@@ -8,7 +8,7 @@ import { measureView, resultView } from './views/measure.js';
 import { historyView } from './views/history.js';
 import { photosView } from './views/photos.js';
 import { treatmentView } from './views/treatment.js';
-import { sharingView, sharePermsView, personView } from './views/sharing.js';
+import { sharingView, sharePermsView, personView, feedView } from './views/sharing.js';
 import { profileView } from './views/profile.js';
 import { notificationsView } from './views/notifications.js';
 
@@ -30,6 +30,7 @@ const routes = [
   [/^\/historik$/, historyView, 'stats'],
   [/^\/bilder$/, photosView, 'me'],
   [/^\/behandling$/, treatmentView, 'me'],
+  [/^\/flode$/, feedView, 'share'],
   [/^\/delning$/, sharingView, 'share'],
   [/^\/delning\/([^/]+)$/, sharePermsView, 'share'],
   [/^\/person\/([^/]+)$/, personView, 'share'],
@@ -54,7 +55,7 @@ function renderNav(active) {
     ${item('home', '#/', 'home', 'Översikt')}
     ${item('stats', '#/historik', 'chart', 'Historik')}
     <a href="#/matning" class="mat"><span class="plus">${icon('plus', 22, 2.2)}</span><span>Mät</span></a>
-    ${item('share', '#/delning', 'users', 'Delning')}
+    ${item('share', '#/flode', 'comment', 'Flöde')}
     ${item('me', '#/profil', 'user', 'Profil')}
   </div>`;
 }
