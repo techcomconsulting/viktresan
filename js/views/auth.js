@@ -2,7 +2,7 @@
 import {
   auth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, deleteUser
 } from '../firebase.js';
-import { claimIdentity, usernameFree, saveProfile } from '../data.js';
+import { claimIdentity, saveProfile } from '../data.js';
 import { esc, errorText, parseNum, isoDay, toast, busy } from '../ui.js';
 
 const brand = `<div class="stack" style="align-items:flex-start;margin:12px 0 8px">
@@ -68,8 +68,6 @@ export async function registerView(el, ctx) {
     await busy(form.querySelector('[type=submit]'), async () => {
       const timeout = (ms) => new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error('timeout'), { code: 'db-timeout' })), ms));
       try {
-        const free = await Promise.race([usernameFree(username), timeout(12000)]);
-        if (!free) return show('Användarnamnet är upptaget.');
         ctx.state.registering = true;
         const cred = await createUserWithEmailAndPassword(auth, form.em.value.trim(), form.pw.value);
         try {
