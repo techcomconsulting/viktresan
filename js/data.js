@@ -15,16 +15,35 @@ function markWarm(key) {
   warm.add(key);
   try { localStorage.setItem(WARM_KEY, JSON.stringify([...warm])); } catch { /* ingen lagring */ }
 }
+// Minne för den här sessionen: sidor som redan har visats öppnas direkt.
+const mem = new Map();
+let gen = 0;
+export function invalidate(...parts) {
+  gen++;
+  if (!parts.length) { mem.clear(); return; }
+  for (const k of [...mem.keys()]) if (parts.some((p) => k.includes(p))) mem.delete(k);
+}
+function refresh(q, k) {
+  const hit = mem.get(k);
+  if (hit && Date.now() - hit.t < 15000) return;
+  if (hit) hit.t = Date.now();
+  const g = gen;
+  getDocsFromServer(q).then((s) => { if (g === gen) mem.set(k, { s, t: Date.now() }); }).catch(() => {});
+}
 async function fastDocs(q, key) {
   const k = (auth.currentUser?.uid || '') + ':' + key;
+  if (mem.has(k)) { const s = mem.get(k).s; refresh(q, k); return s; }
   if (warm.has(k)) {
     try {
       const s = await getDocsFromCache(q);
-      getDocsFromServer(q).catch(() => {});
+      mem.set(k, { s, t: 0 });
+      refresh(q, k);
       return s;
     } catch { /* inte i cachen, hämta från nätet */ }
   }
+  const g = gen;
   const s = await getDocs(q);
+  if (g === gen) mem.set(k, { s, t: Date.now() });
   markWarm(k);
   return s;
 }
@@ -129,6 +148,7 @@ function writeSummaries(b, uid, profile, entries) {
 }
 
 export async function addEntry(uid, profile, prevEntries, vals) {
+  invalidate('weights', 'measures');
   const ref = doc(sub(uid, 'weights'));
   const at = Timestamp.now();
   const b = writeBatch(db);
@@ -145,6 +165,7 @@ export async function addEntry(uid, profile, prevEntries, vals) {
 }
 
 export async function deleteEntry(uid, profile, entries, id) {
+  invalidate('weights', 'measures');
   const b = writeBatch(db);
   b.delete(subDoc(uid, 'weights', id));
   b.delete(subDoc(uid, 'measures', id));
@@ -153,6 +174,7 @@ export async function deleteEntry(uid, profile, entries, id) {
 }
 
 export async function refreshSummaries(uid, profile) {
+  invalidate('weights', 'measures');
   const entries = await loadEntries(uid);
   const b = writeBatch(db);
   writeSummaries(b, uid, profile, entries);
@@ -178,14 +200,19 @@ export async function lookupPerson(q) {
   return { uid, firstName: card?.firstName || key, avatar: card?.avatar || null };
 }
 
+const cardMem = new Map();
 export async function getCard(uid) {
+  if (cardMem.has(uid)) return cardMem.get(uid);
   try {
     const c = await getDoc(doc(db, 'users', uid, 'public', 'card'));
-    return c.exists() ? c.data() : null;
+    const v = c.exists() ? c.data() : null;
+    cardMem.set(uid, v);
+    return v;
   } catch { return null; }
 }
 
 export async function createShare(me, meName, other, perms, historyRange) {
+  invalidate('shares');
   const id = me + '_' + other.uid;
   await setDoc(doc(db, 'shares', id), {
     owner: me, viewer: other.uid, ownerName: meName, viewerName: other.firstName,
@@ -197,8 +224,8 @@ export async function createShare(me, meName, other, perms, historyRange) {
 export async function loadShares(uid) {
   const col = collection(db, 'shares');
   const [o, v] = await Promise.all([
-    getDocs(query(col, where('owner', '==', uid))),
-    getDocs(query(col, where('viewer', '==', uid)))
+    fastDocs(query(col, where('owner', '==', uid)), 'shares-out'),
+    fastDocs(query(col, where('viewer', '==', uid)), 'shares-in')
   ]);
   return {
     out: o.docs.map((d) => ({ id: d.id, ...d.data() })),
@@ -214,15 +241,18 @@ export async function getShare(id) {
 }
 
 export async function acceptShare(share, myName) {
+  invalidate('shares');
   await updateDoc(doc(db, 'shares', share.id), { status: 'active', acceptedAt: serverTimestamp() });
   await notify(share.owner, `${myName} har accepterat din delning.`, '#/delning/' + share.id);
 }
 
 export async function updateShare(id, data) {
+  invalidate('shares');
   await updateDoc(doc(db, 'shares', id), { ...data, updatedAt: serverTimestamp() });
 }
 
 export async function removeShare(id) {
+  invalidate('shares');
   await deleteDoc(doc(db, 'shares', id));
 }
 
@@ -231,6 +261,7 @@ export async function removeShare(id) {
 export const REACTIONS = [['heart', '❤️', 'Hjärta'], ['fire', '🔥', 'Eld'], ['strong', '💪', 'Styrka'], ['clap', '👏', 'Applåd']];
 
 export async function createPost(uid, name, data) {
+  invalidate('posts');
   await addDoc(sub(uid, 'posts'), { ...data, createdAt: serverTimestamp() });
   try {
     const { out } = await loadShares(uid);
@@ -242,12 +273,13 @@ export async function createPost(uid, name, data) {
 export async function loadPosts(uid, n = 20) {
   try {
     const q = query(sub(uid, 'posts'), orderBy('createdAt', 'desc'), limit(n));
-    const s = isMe(uid) ? await fastDocs(q, 'posts' + n) : await getDocs(q);
+    const s = await fastDocs(q, 'posts:' + uid + ':' + n);
     return s.docs.map((d) => ({ id: d.id, owner: uid, ...d.data() }));
   } catch { return []; }
 }
 
 export async function deletePost(uid, pid) {
+  invalidate('posts');
   const [c, r] = await Promise.all([
     getDocs(collection(db, 'users', uid, 'posts', pid, 'comments')),
     getDocs(collection(db, 'users', uid, 'posts', pid, 'reactions'))
@@ -301,9 +333,11 @@ export async function loadPhotos(uid) {
   } catch { return []; }
 }
 export async function addPhoto(uid, kind, data, weight) {
+  invalidate('photos');
   await addDoc(sub(uid, 'photos'), { kind, data, weight: weight ?? null, at: Timestamp.now() });
 }
-export async function deletePhoto(uid, id) { await deleteDoc(subDoc(uid, 'photos', id)); }
+export async function deletePhoto(uid, id) {
+  invalidate('photos'); await deleteDoc(subDoc(uid, 'photos', id)); }
 
 // ---------- Behandling ----------
 
@@ -314,8 +348,10 @@ export async function loadTreatments(uid) {
     return s.docs.map((d) => ({ id: d.id, ...d.data() }));
   } catch { return []; }
 }
-export async function addTreatment(uid, data) { await addDoc(sub(uid, 'treatments'), { ...data, createdAt: serverTimestamp() }); }
-export async function deleteTreatment(uid, id) { await deleteDoc(subDoc(uid, 'treatments', id)); }
+export async function addTreatment(uid, data) {
+  invalidate('treatments'); await addDoc(sub(uid, 'treatments'), { ...data, createdAt: serverTimestamp() }); }
+export async function deleteTreatment(uid, id) {
+  invalidate('treatments'); await deleteDoc(subDoc(uid, 'treatments', id)); }
 
 // ---------- Personliga mål ----------
 
@@ -323,9 +359,12 @@ export async function loadGoals(uid) {
   const s = await fastDocs(query(sub(uid, 'goals'), orderBy('createdAt')), 'goals');
   return s.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
-export async function addGoal(uid, text) { await addDoc(sub(uid, 'goals'), { text, done: false, doneAt: null, createdAt: Timestamp.now() }); }
-export async function setGoalDone(uid, id, done) { await updateDoc(subDoc(uid, 'goals', id), { done, doneAt: done ? Timestamp.now() : null }); }
-export async function deleteGoal(uid, id) { await deleteDoc(subDoc(uid, 'goals', id)); }
+export async function addGoal(uid, text) {
+  invalidate('goals'); await addDoc(sub(uid, 'goals'), { text, done: false, doneAt: null, createdAt: Timestamp.now() }); }
+export async function setGoalDone(uid, id, done) {
+  invalidate('goals'); await updateDoc(subDoc(uid, 'goals', id), { done, doneAt: done ? Timestamp.now() : null }); }
+export async function deleteGoal(uid, id) {
+  invalidate('goals'); await deleteDoc(subDoc(uid, 'goals', id)); }
 
 // ---------- Notiser ----------
 
@@ -338,8 +377,9 @@ export async function notify(to, text, link = '#/') {
 }
 
 export function watchUnread(uid, cb) {
+  let last = -1;
   return onSnapshot(query(collection(db, 'notifications', uid, 'items'), where('read', '==', false)),
-    (s) => cb(s.size), () => cb(0));
+    (s) => { if (last >= 0 && s.size > last) invalidate(); last = s.size; cb(s.size); }, () => cb(0));
 }
 
 export async function loadNotifications(uid) {
@@ -348,6 +388,7 @@ export async function loadNotifications(uid) {
 }
 
 export async function markRead(items) {
+  invalidate('notifs');
   const unread = items.filter((n) => !n.read);
   if (!unread.length) return;
   const b = writeBatch(db);
