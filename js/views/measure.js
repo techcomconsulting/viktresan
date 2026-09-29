@@ -174,32 +174,40 @@ function openPhotoPrompt(ctx, entry) {
   });
 }
 
-export function openPostSheet(ctx, entry, prev, start) {
+export function openPostSheet(ctx, entry, prev, start, fresh = true) {
   const { state } = ctx;
-  const d = prev ? entry.weight - prev.weight : null;
-  const dw = prev && prev.waist != null ? entry.waist - prev.waist : null;
-  const pct = start ? ((entry.weight - start) / start) * 100 : null;
+  const d = entry && prev ? entry.weight - prev.weight : null;
+  const dw = entry && prev && prev.waist != null ? entry.waist - prev.waist : null;
+  const pct = entry && start ? ((entry.weight - start) / start) * 100 : null;
+  const on = fresh ? 'checked' : '';
   const s = openSheet(`
-    <h2>Dela ditt framsteg</h2>
-    <p class="muted" style="font-size:14px">${esc(dLong(entry.at))}. Du väljer vad som syns.</p>
-    <label class="check"><input type="checkbox" name="w"> Visa vikten (${fmt1(entry.weight)} kg)</label>
-    <label class="check"><input type="checkbox" name="d" checked> Visa förändringen (${signed(d, 'kg')}${pct != null ? `, totalt ${signed(pct, '%')}` : ''})</label>
-    ${dw != null ? `<label class="check"><input type="checkbox" name="m" checked> Visa midjan (${signed(dw, 'cm')})</label>` : ''}
-    <div class="field"><label for="pt">Egen text (valfritt)</label><textarea class="input" id="pt" maxlength="500" placeholder="Hur har veckan varit?"></textarea></div>
-    <div class="btn-row"><button class="btn" data-close>Avbryt</button><button class="btn primary" data-post>Dela</button></div>`, 'Dela framsteg');
+    <h2>${fresh ? 'Dela ditt framsteg' : 'Nytt inlägg'}</h2>
+    <p class="muted" style="font-size:14px">Bara de du delar inlägg med kan se det.</p>
+    <div class="field"><label for="pt">Din text</label><textarea class="input" id="pt" maxlength="500" placeholder="Hur har veckan varit?"></textarea></div>
+    ${entry ? `<p class="small muted" style="margin-bottom:-8px">Från din senaste mätning, ${esc(dLong(entry.at))}:</p>
+      <label class="check"><input type="checkbox" name="w"> Visa vikten (${fmt1(entry.weight)} kg)</label>
+      ${d != null ? `<label class="check"><input type="checkbox" name="d" ${on}> Visa förändringen (${signed(d, 'kg')}${pct != null ? `, totalt ${signed(pct, '%')}` : ''})</label>` : ''}
+      ${dw != null ? `<label class="check"><input type="checkbox" name="m" ${on}> Visa midjan (${signed(dw, 'cm')})</label>` : ''}` : ''}
+    <p class="error hidden" role="alert">Skriv något eller välj vad som ska visas.</p>
+    <div class="btn-row"><button class="btn" data-close>Avbryt</button><button class="btn primary" data-post>Dela</button></div>`, 'Inlägg');
   s.el.querySelector('[data-post]').addEventListener('click', async (e) => {
-    const q = (n) => s.el.querySelector(`[name=${n}]`)?.checked;
+    const q = (n) => !!s.el.querySelector(`[name=${n}]`)?.checked;
+    const data = {
+      text: s.el.querySelector('#pt').value.trim().slice(0, 500),
+      weight: q('w') ? entry.weight : null,
+      dWeight: q('d') && d != null ? round1(d) : null,
+      pct: q('d') && pct != null ? round1(pct) : null,
+      dWaist: q('m') && dw != null ? round1(dw) : null
+    };
+    if (!data.text && data.weight == null && data.dWeight == null && data.dWaist == null) {
+      s.el.querySelector('.error').classList.remove('hidden');
+      return;
+    }
     await busy(e.currentTarget, async () => {
       try {
-        await createPost(state.user.uid, state.profile.firstName, {
-          text: s.el.querySelector('#pt').value.trim().slice(0, 500),
-          weight: q('w') ? entry.weight : null,
-          dWeight: q('d') && d != null ? round1(d) : null,
-          pct: q('d') && pct != null ? round1(pct) : null,
-          dWaist: q('m') ? round1(dw) : null
-        });
+        await createPost(state.user.uid, state.profile.firstName, data);
         s.close();
-        toast('Ditt framsteg är delat.');
+        toast('Ditt inlägg är delat.');
         ctx.go('/delning');
       } catch (ex) { toast(errorText(ex)); }
     });

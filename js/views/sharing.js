@@ -10,6 +10,7 @@ import {
 } from '../ui.js';
 import { buildTimeline, photoImg } from './photos.js';
 import { treatmentList } from './treatment.js';
+import { openPostSheet } from './measure.js';
 
 const permText = (s) => PERMS.filter(([k]) => s.perms?.[k]).map(([, l]) => l.split(' ')[0]).join(' · ') || 'Inget valt än';
 
@@ -169,14 +170,22 @@ export async function sharingView(el, ctx) {
 
       ${feed.length ? `<section class="stack"><h2>Från familjen</h2>${feed.map((p) => postCard(p, nameOf(p.owner), cards[p.owner]?.avatar, me)).join('')}</section>` : ''}
 
-      <section class="stack"><h2>Mina inlägg</h2>
-        ${ownPosts.length ? ownPosts.map((p) => postCard(p, myName, state.profile.avatar, me)).join('') : '<div class="card empty">Efter en mätning kan du välja att dela ditt framsteg här.</div>'}
+      <section class="stack"><div class="between"><h2>Mina inlägg</h2><button class="btn primary sm" data-newpost>${icon('plus', 18, 2.2)}Nytt inlägg</button></div>
+        ${ownPosts.length ? ownPosts.map((p) => postCard(p, myName, state.profile.avatar, me)).join('') : '<div class="card empty">Här syns det du delar. Tryck på Nytt inlägg för att skriva något.</div>'}
       </section>
 
       ${!mine.length && !waiting.length && !theirs.length && !incoming.length ? '<p class="small muted">Du delar inte med någon än. Ingen kan se något av det du sparar.</p>' : ''}
     </div>`;
 
     wirePosts(el, ctx);
+
+    el.querySelector('[data-newpost]').addEventListener('click', async () => {
+      const entries = await loadEntries(me).catch(() => []);
+      const last = entries[entries.length - 1] || null;
+      const prev = entries[entries.length - 2] || null;
+      const start = state.profile.startWeight ?? entries[0]?.weight;
+      openPostSheet(ctx, last, prev, start, false);
+    });
 
     el.querySelector('[data-invite]').addEventListener('submit', async (e) => {
       e.preventDefault();
