@@ -1,0 +1,122 @@
+rules_version = '2';
+
+// Säkerhetsregler för Viktresan.
+// Grundregel: allt är privat. Andra ser bara det du uttryckligen har delat.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function me() { return request.auth.uid; }
+    function isOwner(owner) { return signedIn() && me() == owner; }
+    function sharePath(owner) {
+      return /databases/$(database)/documents/shares/$(owner + '_' + request.auth.uid);
+    }
+    // Har ägaren delat just den här saken med mig, och är delningen accepterad?
+    function shared(owner, perm) {
+      return signedIn()
+        && exists(sharePath(owner))
+        && get(sharePath(owner)).data.status == 'active'
+        && get(sharePath(owner)).data.perms[perm] == true;
+    }
+    // Historik: antingen allt, eller bara de senaste 3 månaderna.
+    function inRange(owner) {
+      return get(sharePath(owner)).data.historyRange == 'all'
+        || resource.data.at > request.time - duration.value(92, 'd');
+    }
+
+    // Uppslag för att hitta varandra. Man måste veta exakt namn eller e-post.
+    match /usernames/{name} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if signedIn()
+        && request.resource.data.uid == me()
+        && name.matches('^[a-z0-9_]{3,20}$');
+      allow delete: if signedIn() && resource.data.uid == me();
+    }
+    match /emails/{email} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+        && request.resource.data.uid == me()
+        && email == request.auth.token.email.lower();
+      allow delete: if signedIn() && resource.data.uid == me();
+    }
+
+    match /users/{uid} {
+      // Din egen profil: bara du.
+      allow read, write: if isOwner(uid);
+
+      // Allt under din profil: du får göra allt.
+      match /{path=**} {
+        allow read, write: if isOwner(uid);
+      }
+
+      // Namn och profilbild, så att den du delar med ser vem du är.
+      match /public/{docId} {
+        allow get: if signedIn();
+      }
+
+      // Det andra får se, bara om du har delat det.
+      match /summary/weight { allow get: if shared(uid, 'weight'); }
+      match /summary/measures { allow get: if shared(uid, 'measures'); }
+      match /weights/{id} {
+        allow read: if shared(uid, 'weight') && shared(uid, 'history') && inRange(uid);
+      }
+      match /measures/{id} {
+        allow read: if shared(uid, 'measures') && shared(uid, 'history') && inRange(uid);
+      }
+      match /photos/{id} { allow read: if shared(uid, 'photos'); }
+      match /treatments/{id} { allow read: if shared(uid, 'treatment'); }
+
+      match /posts/{pid} {
+        allow read: if shared(uid, 'posts');
+        match /comments/{cid} {
+          allow read: if shared(uid, 'posts');
+          allow create: if shared(uid, 'posts')
+            && request.resource.data.uid == me()
+            && request.resource.data.text is string
+            && request.resource.data.text.size() <= 500;
+          allow delete: if signedIn() && resource.data.uid == me();
+        }
+        match /reactions/{rid} {
+          allow read: if shared(uid, 'posts');
+          allow write: if shared(uid, 'posts') && rid == me();
+        }
+      }
+    }
+
+    // Delningar mellan två personer. Id = ägare_mottagare.
+    match /shares/{id} {
+      allow read: if signedIn()
+        && (resource.data.owner == me() || resource.data.viewer == me());
+      allow create: if signedIn()
+        && request.resource.data.owner == me()
+        && request.resource.data.viewer != me()
+        && id == me() + '_' + request.resource.data.viewer
+        && request.resource.data.status == 'pending';
+      allow update: if signedIn() && (
+        // Mottagaren får bara acceptera.
+        (resource.data.viewer == me()
+          && resource.data.status == 'pending'
+          && request.resource.data.status == 'active'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'acceptedAt']))
+        ||
+        // Ägaren får bara ändra vad som delas.
+        (resource.data.owner == me()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['perms', 'historyRange', 'updatedAt']))
+      );
+      allow delete: if signedIn()
+        && (resource.data.owner == me() || resource.data.viewer == me());
+    }
+
+    // Notiser inne i appen.
+    match /notifications/{uid}/items/{nid} {
+      allow read, update, delete: if isOwner(uid);
+      allow create: if signedIn()
+        && request.resource.data.from == me()
+        && request.resource.data.text is string
+        && request.resource.data.text.size() < 300;
+    }
+  }
+}

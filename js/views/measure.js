@@ -1,0 +1,207 @@
+// Ny mätning och resultatet efteråt.
+import { loadEntries, addEntry, METRICS, createPost, notify, addPhoto } from '../data.js';
+import { esc, fmt1, signed, parseNum, icon, dDay, tHM, dLong, toast, busy, openSheet, errorText, resizeImage, round1 } from '../ui.js';
+import { progressInfo } from './overview.js';
+
+export async function measureView(el, ctx) {
+  const { state } = ctx;
+  const uid = state.user.uid;
+  const entries = await loadEntries(uid);
+  const prev = entries[entries.length - 1] || null;
+  const now = new Date();
+
+  el.innerHTML = `<div class="screen no-nav">
+    <div class="between">
+      <a href="#/" class="icon-btn" aria-label="Stäng">${icon('close', 20, 2)}</a>
+      <span style="font-size:17px;font-weight:700">Ny mätning</span>
+      <span style="width:44px"></span>
+    </div>
+    <div class="stack" style="gap:4px">
+      <h1 style="font-size:26px">${esc(dDay(now))}, ${tHM(now)}</h1>
+      <p class="muted" style="font-size:14px">Datum och tid sparas automatiskt.</p>
+    </div>
+    <form class="stack-lg" novalidate>
+      <div class="card flush">
+        ${METRICS.map(([key, label, unit]) => `
+          <div class="measure-row">
+            <div class="grow stack" style="gap:3px">
+              <label for="m-${key}" style="font-size:16px;font-weight:700">${label}</label>
+              <span class="small muted">${prev && prev[key] != null ? `Förra: ${fmt1(prev[key])} ${unit}` : unit === 'kg' ? 'I kilo' : 'I centimeter'}</span>
+            </div>
+            <span class="chip neutral hidden" data-delta="${key}"></span>
+            <div class="unit-input"><input id="m-${key}" name="${key}" inputmode="decimal" autocomplete="off" required><span>${unit}</span></div>
+          </div>`).join('')}
+      </div>
+      <p class="small muted row" style="gap:8px">${icon('info', 16)}Alla fem värden krävs. Vikt i kg, mått i cm.</p>
+      <p class="error hidden" role="alert"></p>
+      <button class="btn primary block" type="submit">Spara mätning</button>
+    </form>
+  </div>`;
+
+  const form = el.querySelector('form');
+  const err = el.querySelector('.error');
+  METRICS.forEach(([key, , unit]) => {
+    const input = form.querySelector(`[name=${key}]`);
+    const chip = form.querySelector(`[data-delta=${key}]`);
+    input.addEventListener('input', () => {
+      const v = parseNum(input.value);
+      if (v == null || !prev || prev[key] == null) { chip.classList.add('hidden'); return; }
+      const d = v - prev[key];
+      chip.textContent = signed(d, unit);
+      chip.className = 'chip ' + (d < 0 ? 'good' : 'neutral');
+    });
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    err.classList.add('hidden');
+    const vals = {};
+    for (const [key, label] of METRICS) {
+      const v = parseNum(form.querySelector(`[name=${key}]`).value);
+      const [min, max] = key === 'weight' ? [25, 350] : [5, 250];
+      if (v == null || v < min || v > max) {
+        err.textContent = `Kontrollera ${label.toLowerCase()}.`;
+        err.classList.remove('hidden');
+        form.querySelector(`[name=${key}]`).focus();
+        return;
+      }
+      vals[key] = round1(v);
+    }
+    await busy(form.querySelector('[type=submit]'), async () => {
+      try {
+        const saved = await addEntry(uid, state.profile, entries, vals);
+        if (state.profile.startWeight == null) state.profile.startWeight = saved.startWeight;
+        const start = state.profile.startWeight;
+        let milestone = null;
+        if (prev) {
+          const a = progressInfo(start, state.profile.goalWeight, prev.weight);
+          const b = progressInfo(start, state.profile.goalWeight, saved.weight);
+          if (a && b) {
+            const crossed = b.miles.filter((m) => m.done && a.pct < m.m);
+            if (crossed.length) milestone = crossed[crossed.length - 1].m;
+          }
+        }
+        if (milestone) notify(uid, `Du nådde ${Math.round(milestone * 100)} % av ditt mål.`, '#/historik');
+        state.lastResult = { entry: saved, prev, first: !prev, milestone, start };
+        ctx.go('/matning/klar');
+      } catch (ex) {
+        err.textContent = errorText(ex);
+        err.classList.remove('hidden');
+      }
+    });
+  });
+}
+
+export async function resultView(el, ctx) {
+  const { state } = ctx;
+  const r = state.lastResult;
+  if (!r) { ctx.go('/'); return; }
+  const { entry, prev, first, milestone, start } = r;
+
+  const rows = METRICS.map(([key, label, unit]) => {
+    const d = prev && prev[key] != null ? entry[key] - prev[key] : null;
+    return `<div class="list-row" style="min-height:54px">
+      <span class="grow title">${label}</span>
+      <span class="muted num" style="font-size:15px">${fmt1(entry[key])} ${unit}</span>
+      ${d != null ? `<span class="chip ${d <= 0 ? 'good' : 'neutral'} num" style="min-width:84px;justify-content:center">${signed(d, unit)}</span>` : ''}
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `<div class="screen no-nav">
+    <div class="row" style="gap:14px;margin-top:20px">
+      <span style="width:52px;height:52px;border-radius:26px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center">${icon('check', 26, 2.6)}</span>
+      <div class="stack" style="gap:2px">
+        <h1 style="font-size:26px">${first ? 'Första mätningen sparad' : 'Mätning sparad'}</h1>
+        <span class="muted" style="font-size:14px">${first ? 'Det här är din startpunkt.' : `Jämfört med ${esc(dLong(prev.at))}`}</span>
+      </div>
+    </div>
+    <div class="card flush">${rows}</div>
+    ${milestone ? `<div class="banner pink row">${icon('flag', 24)}<span><strong>Delmål klart!</strong> Du har gått ${Math.round(milestone * 100)} % av vägen.</span></div>` : ''}
+    ${first ? `
+      <div class="card stack-lg">
+        <h2>Vill du ta en bild för att kunna se din förändring senare?</h2>
+        <p class="muted">Bilder är alltid privata. Bara du ser dem.</p>
+        <a class="btn primary block" href="#/bilder">Ladda upp bilder</a>
+        <a class="btn block" href="#/">Hoppa över</a>
+      </div>` : `
+      <div class="card stack-lg">
+        <div class="stack" style="gap:4px"><h2>Vill du dela ditt framsteg?</h2><p class="muted" style="font-size:14px">Bara de du har valt kan se det.</p></div>
+        <div class="btn-row"><a class="btn" href="#/">Inte nu</a><button class="btn primary" data-share>Skapa inlägg</button></div>
+      </div>`}
+  </div>`;
+
+  const shareBtn = el.querySelector('[data-share]');
+  if (shareBtn) shareBtn.addEventListener('click', () => openPostSheet(ctx, entry, prev, start));
+  if (first) openPhotoPrompt(ctx, entry);
+}
+
+function openPhotoPrompt(ctx, entry) {
+  const uid = ctx.state.user.uid;
+  const s = openSheet(`
+    <span style="width:56px;height:56px;border-radius:28px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center">${icon('camera', 28)}</span>
+    <h2>Vill du ta en bild för att kunna se din förändring senare?</h2>
+    <p class="muted">Bilder är alltid privata. Bara du ser dem tills du själv väljer att dela.</p>
+    <div class="grid2">
+      ${[['face', 'Ansiktsbild'], ['body', 'Helkroppsbild']].map(([k, label]) => `
+        <label class="btn outline" style="height:104px;flex-direction:column;border-style:dashed" data-kind="${k}">
+          ${icon(k, 30, 1.6)}<span>${label}</span>
+          <input type="file" accept="image/*" class="hidden">
+        </label>`).join('')}
+    </div>
+    <button class="btn primary block" data-done>Ladda upp bilder</button>
+    <button class="btn ghost block" data-close>Hoppa över</button>`, 'Bilder');
+  const chosen = {};
+  s.el.querySelectorAll('[data-kind]').forEach((lab) => {
+    lab.querySelector('input').addEventListener('change', (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      chosen[lab.dataset.kind] = f;
+      lab.style.borderStyle = 'solid';
+      lab.style.borderColor = 'var(--accent)';
+      lab.querySelector('span').textContent = 'Vald ✓';
+    });
+  });
+  s.el.querySelector('[data-done]').addEventListener('click', async (e) => {
+    if (!Object.keys(chosen).length) { s.close(); ctx.go('/bilder'); return; }
+    await busy(e.currentTarget, async () => {
+      try {
+        for (const [kind, f] of Object.entries(chosen)) await addPhoto(uid, kind, await resizeImage(f), entry.weight);
+        toast('Bilderna är sparade. Bara du ser dem.');
+        s.close();
+        ctx.go('/bilder');
+      } catch (ex) { toast(errorText(ex)); }
+    });
+  });
+}
+
+export function openPostSheet(ctx, entry, prev, start) {
+  const { state } = ctx;
+  const d = prev ? entry.weight - prev.weight : null;
+  const dw = prev && prev.waist != null ? entry.waist - prev.waist : null;
+  const pct = start ? ((entry.weight - start) / start) * 100 : null;
+  const s = openSheet(`
+    <h2>Dela ditt framsteg</h2>
+    <p class="muted" style="font-size:14px">${esc(dLong(entry.at))}. Du väljer vad som syns.</p>
+    <label class="check"><input type="checkbox" name="w"> Visa vikten (${fmt1(entry.weight)} kg)</label>
+    <label class="check"><input type="checkbox" name="d" checked> Visa förändringen (${signed(d, 'kg')}${pct != null ? `, totalt ${signed(pct, '%')}` : ''})</label>
+    ${dw != null ? `<label class="check"><input type="checkbox" name="m" checked> Visa midjan (${signed(dw, 'cm')})</label>` : ''}
+    <div class="field"><label for="pt">Egen text (valfritt)</label><textarea class="input" id="pt" maxlength="500" placeholder="Hur har veckan varit?"></textarea></div>
+    <div class="btn-row"><button class="btn" data-close>Avbryt</button><button class="btn primary" data-post>Dela</button></div>`, 'Dela framsteg');
+  s.el.querySelector('[data-post]').addEventListener('click', async (e) => {
+    const q = (n) => s.el.querySelector(`[name=${n}]`)?.checked;
+    await busy(e.currentTarget, async () => {
+      try {
+        await createPost(state.user.uid, state.profile.firstName, {
+          text: s.el.querySelector('#pt').value.trim().slice(0, 500),
+          weight: q('w') ? entry.weight : null,
+          dWeight: q('d') && d != null ? round1(d) : null,
+          pct: q('d') && pct != null ? round1(pct) : null,
+          dWaist: q('m') ? round1(dw) : null
+        });
+        s.close();
+        toast('Ditt framsteg är delat.');
+        ctx.go('/delning');
+      } catch (ex) { toast(errorText(ex)); }
+    });
+  });
+}
