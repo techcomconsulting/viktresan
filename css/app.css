@@ -213,3 +213,5 @@ img.photo { padding: 0; }
 .post .fact { padding: 6px 10px; border-radius: 10px; background: var(--bg); font-size: 14px; font-weight: 700; }
 .comment { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .comment:last-child { border-bottom: 0; }
+.timeline button[data-step="0"] { opacity: 1; }
+.timeline button[data-step="0"] .dot { background: var(--accent-soft); border-color: var(--accent); }

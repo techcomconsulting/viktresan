@@ -42,7 +42,8 @@ export async function photosView(el, ctx) {
     if (sel == null || sel >= steps.length) sel = steps.length - 1;
     if (steps.length && !steps[sel].photo) sel = steps.map((s) => !!s.photo).lastIndexOf(true);
     const kInfo = KINDS.find((k) => k[0] === kind);
-    const a = steps[0]?.photo, b = steps[sel]?.photo;
+    const a = steps[0]?.photo;
+    const b = steps[sel]?.photo && steps[sel].photo !== a ? steps[sel].photo : null;
     const diff = a && b && a.weight != null && b.weight != null ? b.weight - a.weight : null;
 
     el.innerHTML = `<div class="screen">
@@ -57,14 +58,15 @@ export async function photosView(el, ctx) {
         <section class="card stack-lg" style="padding:14px">
           <div class="grid2">
             <div class="stack">${photoImg(a, 'Startbild')}<div><b style="font-size:14px">Start · ${esc(dShort(a.at))}</b><div class="small muted">${a.weight != null ? fmt1(a.weight) + ' kg' : ''}</div></div></div>
-            <div class="stack">${photoImg(b, steps[sel].label)}<div><b style="font-size:14px">${esc(steps[sel].label.charAt(0) + steps[sel].label.slice(1).toLowerCase())} · ${esc(dShort(steps[sel].date))}</b><div class="small muted">${b && b.weight != null ? fmt1(b.weight) + ' kg' : ''}</div></div></div>
+            ${b ? `<div class="stack">${photoImg(b, steps[sel].label)}<div><b style="font-size:14px">${esc(steps[sel].label.charAt(0) + steps[sel].label.slice(1).toLowerCase())} · ${esc(dShort(steps[sel].date))}</b><div class="small muted">${b.weight != null ? fmt1(b.weight) + ' kg' : ''}</div></div></div>`
+              : `<div class="stack"><div class="photo">Din nästa bild visas här, bredvid startbilden.</div><div><b style="font-size:14px">Nästa bild</b></div></div>`}
           </div>
-          ${diff != null && b !== a ? `<div class="banner soft" style="text-align:center;font-weight:700;padding:8px">${signed(diff, 'kg')} mellan bilderna</div>` : ''}
+          ${diff != null ? `<div class="banner soft" style="text-align:center;font-weight:700;padding:8px">${signed(diff, 'kg')} mellan bilderna</div>` : ''}
         </section>
         <section class="card" style="padding:14px 6px 8px">
           <h2 style="margin:0 10px 4px">Tidslinje</h2>
           <div class="timeline"><span class="line"></span>
-            ${steps.map((s, i) => `<button type="button" data-step="${i}" aria-pressed="${i === sel}" ${s.photo ? '' : 'disabled'}>
+            ${steps.map((s, i) => `<button type="button" data-step="${i}" aria-pressed="${i === sel}" ${s.photo && i > 0 ? '' : 'disabled'}>
               <span class="dot"></span><span class="tl-label">${s.label}</span><span class="tl-date">${esc(dShort(s.date))}</span></button>`).join('')}
           </div>
         </section>` : `<div class="card empty">Du har inga ${kInfo[2]}er än.<br>Bara du kan se dina bilder.</div>`}
