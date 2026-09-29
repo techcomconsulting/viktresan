@@ -35,7 +35,7 @@ const isMe = (uid) => auth.currentUser && auth.currentUser.uid === uid;
 export function prefetch(uid) {
   const jobs = [
     () => loadEntries(uid), () => loadNotifications(uid), () => loadShares(uid), () => loadGoals(uid),
-    () => loadPosts(uid, 10), () => loadTreatments(uid), () => loadPhotos(uid)
+    () => migrateOldPosts(uid).then(() => loadMyPosts(uid)), () => loadGroups(uid), () => loadTreatments(uid), () => loadPhotos(uid)
   ];
   jobs.forEach((j) => j().catch(() => {}));
 }
@@ -251,41 +251,83 @@ export async function removeShare(id) {
 
 export const REACTIONS = [['heart', '❤️', 'Hjärta'], ['fire', '🔥', 'Eld'], ['strong', '💪', 'Styrka'], ['clap', '👏', 'Applåd']];
 
-export async function createPost(uid, name, data) {
+const postsCol = () => collection(db, 'posts');
+const postDoc = (pid) => doc(db, 'posts', pid);
+const toPost = (d) => ({ id: d.id, ...d.data() });
+const byNewest = (a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0);
+
+// Vilka jag är kopplad till (delar med eller som delar med mig).
+export async function loadPeople(uid) {
+  const { out, in: inc } = await loadShares(uid);
+  const map = new Map();
+  out.filter((s) => s.status === 'active').forEach((s) => map.set(s.viewer, s.viewerName));
+  inc.filter((s) => s.status === 'active').forEach((s) => map.set(s.owner, s.ownerName));
+  return [...map.entries()].map(([id, name]) => ({ uid: id, name })).sort((a, b) => a.name.localeCompare(b.name, 'sv'));
+}
+
+// audience: { type: 'shares' | 'public' | 'group' | 'people', viewers: [uid], label }
+export async function createPost(uid, name, data, audience = { type: 'shares', viewers: [], label: '' }) {
   invalidate('posts');
-  await addDoc(sub(uid, 'posts'), { ...data, createdAt: serverTimestamp() });
+  const viewers = audience.type === 'group' || audience.type === 'people' ? [...new Set(audience.viewers)] : [];
+  await addDoc(postsCol(), {
+    ...data, owner: uid, ownerName: name, audience: audience.type,
+    audienceLabel: audience.label || '', viewers, public: audience.type === 'public',
+    createdAt: serverTimestamp()
+  });
   try {
-    const { out } = await loadShares(uid);
-    await Promise.all(out.filter((s) => s.status === 'active' && s.perms?.posts)
-      .map((s) => notify(s.viewer, `${name} har lagt till ett nytt framsteg.`, '#/person/' + uid)));
+    let to = viewers;
+    if (audience.type === 'shares' || audience.type === 'public') {
+      const { out } = await loadShares(uid);
+      to = out.filter((s) => s.status === 'active' && (audience.type === 'public' || s.perms?.posts)).map((s) => s.viewer);
+    }
+    await Promise.all(to.map((v) => notify(v, `${name} har lagt till ett nytt inlägg.`, '#/delning')));
   } catch (e) { console.warn(e); }
 }
 
-export async function loadPosts(uid, n = 20) {
+export async function loadMyPosts(uid, n = 20) {
   try {
-    const q = query(sub(uid, 'posts'), orderBy('createdAt', 'desc'), limit(n));
-    const s = await fastDocs(q, 'posts:' + uid + ':' + n);
-    return s.docs.map((d) => ({ id: d.id, owner: uid, ...d.data() }));
-  } catch { return []; }
+    const s = await fastDocs(query(postsCol(), where('owner', '==', uid)), 'posts:mine');
+    return s.docs.map(toPost).sort(byNewest).slice(0, n);
+  } catch (e) { console.warn(e); return []; }
 }
 
-export async function deletePost(uid, pid) {
+// Alla inlägg från andra som jag får se.
+export async function loadFeed(uid, n = 30) {
+  const { in: inc } = await loadShares(uid).catch(() => ({ in: [] }));
+  const owners = inc.filter((s) => s.status === 'active' && s.perms?.posts).map((s) => s.owner);
+  const jobs = [
+    fastDocs(query(postsCol(), where('viewers', 'array-contains', uid)), 'posts:direct'),
+    fastDocs(query(postsCol(), where('public', '==', true)), 'posts:public'),
+    ...owners.map((o) => fastDocs(query(postsCol(), where('owner', '==', o), where('audience', '==', 'shares')), 'posts:from:' + o))
+  ];
+  const res = await Promise.allSettled(jobs);
+  const map = new Map();
+  res.forEach((r) => { if (r.status === 'fulfilled') r.value.docs.forEach((d) => map.set(d.id, toPost(d))); });
+  return [...map.values()].filter((p) => p.owner !== uid).sort(byNewest).slice(0, n);
+}
+
+export async function loadPostsOf(owner, me) {
+  const feed = await loadFeed(me, 200);
+  return feed.filter((p) => p.owner === owner).slice(0, 20);
+}
+
+export async function deletePost(pid) {
   invalidate('posts');
   const [c, r] = await Promise.all([
-    getDocs(collection(db, 'users', uid, 'posts', pid, 'comments')),
-    getDocs(collection(db, 'users', uid, 'posts', pid, 'reactions'))
+    getDocs(collection(db, 'posts', pid, 'comments')),
+    getDocs(collection(db, 'posts', pid, 'reactions'))
   ]);
   const b = writeBatch(db);
   c.forEach((d) => b.delete(d.ref));
   r.forEach((d) => b.delete(d.ref));
-  b.delete(subDoc(uid, 'posts', pid));
+  b.delete(postDoc(pid));
   await b.commit();
 }
 
-export async function loadPostExtras(owner, pid, me) {
+export async function loadPostExtras(pid, me) {
   const [r, c] = await Promise.all([
-    getDocs(collection(db, 'users', owner, 'posts', pid, 'reactions')),
-    getDocs(query(collection(db, 'users', owner, 'posts', pid, 'comments'), orderBy('createdAt')))
+    getDocs(collection(db, 'posts', pid, 'reactions')),
+    getDocs(query(collection(db, 'posts', pid, 'comments'), orderBy('createdAt')))
   ]);
   const counts = {};
   let mine = null;
@@ -297,21 +339,64 @@ export async function loadPostExtras(owner, pid, me) {
   return { counts, mine, comments: c.docs.map((d) => ({ id: d.id, ...d.data() })) };
 }
 
-export async function setReaction(owner, pid, me, myName, kind) {
-  const ref = doc(db, 'users', owner, 'posts', pid, 'reactions', me);
+export async function setReaction(post, me, myName, kind) {
+  const ref = doc(db, 'posts', post.id, 'reactions', me);
   if (!kind) { await deleteDoc(ref); return; }
   await setDoc(ref, { kind, at: serverTimestamp() });
-  if (owner !== me) {
+  if (post.owner !== me) {
     const emoji = REACTIONS.find((r) => r[0] === kind)?.[1] || '';
-    await notify(owner, `${myName} gav ${emoji} på ditt inlägg.`, '#/delning');
+    await notify(post.owner, `${myName} gav ${emoji} på ditt inlägg.`, '#/delning');
   }
 }
 
-export async function addComment(owner, pid, me, myName, text) {
-  await addDoc(collection(db, 'users', owner, 'posts', pid, 'comments'), {
+export async function addComment(post, me, myName, text) {
+  await addDoc(collection(db, 'posts', post.id, 'comments'), {
     uid: me, name: myName, text, createdAt: serverTimestamp()
   });
-  if (owner !== me) await notify(owner, `${myName} har kommenterat ditt inlägg.`, '#/delning');
+  if (post.owner !== me) await notify(post.owner, `${myName} har kommenterat ditt inlägg.`, '#/delning');
+}
+
+// Flyttar inlägg från den gamla platsen (första versionen) till den nya.
+export async function migrateOldPosts(uid) {
+  const flag = 'vt-posts-moved-' + uid;
+  try { if (localStorage.getItem(flag)) return; } catch { return; }
+  const old = await getDocs(sub(uid, 'posts'));
+  if (!old.empty) {
+    const card = await getCard(uid);
+    for (const d of old.docs) {
+      const x = d.data();
+      const b = writeBatch(db);
+      b.set(postDoc(d.id), {
+        ...x, owner: uid, ownerName: card?.firstName || '', audience: 'shares', audienceLabel: '', viewers: [], public: false,
+        createdAt: x.createdAt || Timestamp.now()
+      });
+      (await getDocs(collection(d.ref, 'comments'))).forEach((c) => b.delete(c.ref));
+      (await getDocs(collection(d.ref, 'reactions'))).forEach((r) => b.delete(r.ref));
+      b.delete(d.ref);
+      await b.commit();
+    }
+    invalidate('posts');
+  }
+  try { localStorage.setItem(flag, '1'); } catch { /* ok */ }
+}
+
+// ---------- Grupper ----------
+
+export async function loadGroups(uid) {
+  try {
+    const s = await fastDocs(query(sub(uid, 'groups'), orderBy('name')), 'groups');
+    return s.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch { return []; }
+}
+export async function saveGroup(uid, group) {
+  invalidate('groups');
+  const data = { name: group.name, members: group.members };
+  if (group.id) await setDoc(subDoc(uid, 'groups', group.id), data);
+  else await addDoc(sub(uid, 'groups'), data);
+}
+export async function deleteGroup(uid, id) {
+  invalidate('groups');
+  await deleteDoc(subDoc(uid, 'groups', id));
 }
 
 // ---------- Bilder ----------
@@ -403,10 +488,10 @@ export async function deleteEverything(password) {
   await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, password));
   const profile = await getProfile(uid);
   const refs = [];
-  for (const name of ['weights', 'measures', 'summary', 'photos', 'treatments', 'goals', 'public']) {
+  for (const name of ['weights', 'measures', 'summary', 'photos', 'treatments', 'goals', 'public', 'groups']) {
     (await getDocs(sub(uid, name))).forEach((d) => refs.push(d.ref));
   }
-  const posts = await getDocs(sub(uid, 'posts'));
+  const posts = await getDocs(query(postsCol(), where('owner', '==', uid)));
   for (const p of posts.docs) {
     (await getDocs(collection(p.ref, 'comments'))).forEach((d) => refs.push(d.ref));
     (await getDocs(collection(p.ref, 'reactions'))).forEach((d) => refs.push(d.ref));

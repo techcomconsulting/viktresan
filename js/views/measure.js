@@ -1,5 +1,5 @@
 // Ny mätning och resultatet efteråt.
-import { loadEntries, addEntry, METRICS, createPost, notify, addPhoto } from '../data.js';
+import { loadEntries, addEntry, METRICS, createPost, notify, addPhoto, loadPeople, loadGroups } from '../data.js';
 import { esc, fmt1, signed, parseNum, icon, dDay, tHM, dLong, toast, busy, openSheet, errorText, resizeImage, round1 } from '../ui.js';
 import { progressInfo } from './overview.js';
 
@@ -174,15 +174,28 @@ function openPhotoPrompt(ctx, entry) {
   });
 }
 
-export function openPostSheet(ctx, entry, prev, start, fresh = true) {
+export async function openPostSheet(ctx, entry, prev, start, fresh = true) {
   const { state } = ctx;
+  const me = state.user.uid;
+  const [people, groups] = await Promise.all([loadPeople(me).catch(() => []), loadGroups(me)]);
   const d = entry && prev ? entry.weight - prev.weight : null;
   const dw = entry && prev && prev.waist != null ? entry.waist - prev.waist : null;
   const pct = entry && start ? ((entry.weight - start) / start) * 100 : null;
   const on = fresh ? 'checked' : '';
   const s = openSheet(`
     <h2>${fresh ? 'Dela ditt framsteg' : 'Nytt inlägg'}</h2>
-    <p class="muted" style="font-size:14px">Bara de du delar inlägg med kan se det.</p>
+    <div class="field"><label for="aud">Vem får se inlägget?</label>
+      <select class="input" id="aud">
+        <option value="shares">De jag delar inlägg med</option>
+        ${groups.map((g) => `<option value="group:${g.id}">Gruppen ${esc(g.name)}</option>`).join('')}
+        <option value="people">Vissa personer</option>
+        <option value="public">Alla i appen (publik)</option>
+      </select></div>
+    <div class="stack hidden" style="gap:0" data-people>
+      ${people.length ? people.map((p) => `<label class="check"><input type="checkbox" value="${p.uid}" data-name="${esc(p.name)}"> ${esc(p.name)}</label>`).join('')
+        : '<p class="small muted">Du behöver dela med någon först, så att de syns här.</p>'}
+    </div>
+    <p class="banner pink hidden" style="font-size:14px;padding:10px 12px" data-pubnote>Alla som har ett konto i appen kan se det här inlägget.</p>
     <div class="field"><label for="pt">Din text</label><textarea class="input" id="pt" maxlength="500" placeholder="Hur har veckan varit?"></textarea></div>
     ${entry ? `<p class="small muted" style="margin-bottom:-8px">Från din senaste mätning, ${esc(dLong(entry.at))}:</p>
       <label class="check"><input type="checkbox" name="w"> Visa vikten (${fmt1(entry.weight)} kg)</label>
@@ -190,8 +203,26 @@ export function openPostSheet(ctx, entry, prev, start, fresh = true) {
       ${dw != null ? `<label class="check"><input type="checkbox" name="m" ${on}> Visa midjan (${signed(dw, 'cm')})</label>` : ''}` : ''}
     <p class="error hidden" role="alert">Skriv något eller välj vad som ska visas.</p>
     <div class="btn-row"><button class="btn" data-close>Avbryt</button><button class="btn primary" data-post>Dela</button></div>`, 'Inlägg');
+  const audSel = s.el.querySelector('#aud');
+  audSel.addEventListener('change', () => {
+    s.el.querySelector('[data-people]').classList.toggle('hidden', audSel.value !== 'people');
+    s.el.querySelector('[data-pubnote]').classList.toggle('hidden', audSel.value !== 'public');
+  });
   s.el.querySelector('[data-post]').addEventListener('click', async (e) => {
     const q = (n) => !!s.el.querySelector(`[name=${n}]`)?.checked;
+    const err = s.el.querySelector('.error');
+    const v = audSel.value;
+    let audience = { type: 'shares', viewers: [], label: '' };
+    if (v === 'public') audience = { type: 'public', viewers: [], label: 'Alla i appen' };
+    if (v.startsWith('group:')) {
+      const g = groups.find((x) => x.id === v.slice(6));
+      audience = { type: 'group', viewers: g.members.map((m) => m.uid), label: g.name };
+    }
+    if (v === 'people') {
+      const picked = [...s.el.querySelectorAll('[data-people] input:checked')];
+      if (!picked.length) { err.textContent = 'Välj minst en person.'; err.classList.remove('hidden'); return; }
+      audience = { type: 'people', viewers: picked.map((c) => c.value), label: picked.map((c) => c.dataset.name).join(', ') };
+    }
     const data = {
       text: s.el.querySelector('#pt').value.trim().slice(0, 500),
       weight: q('w') ? entry.weight : null,
@@ -200,12 +231,13 @@ export function openPostSheet(ctx, entry, prev, start, fresh = true) {
       dWaist: q('m') && dw != null ? round1(dw) : null
     };
     if (!data.text && data.weight == null && data.dWeight == null && data.dWaist == null) {
-      s.el.querySelector('.error').classList.remove('hidden');
+      err.textContent = 'Skriv något eller välj vad som ska visas.';
+      err.classList.remove('hidden');
       return;
     }
     await busy(e.currentTarget, async () => {
       try {
-        await createPost(state.user.uid, state.profile.firstName, data);
+        await createPost(me, state.profile.firstName, data, audience);
         s.close();
         toast('Ditt inlägg är delat.');
         ctx.go('/delning');

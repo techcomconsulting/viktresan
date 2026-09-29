@@ -1,7 +1,7 @@
 // Delning: bjud in, behörigheter, flöde och andras sidor.
 import {
   PERMS, REACTIONS, HISTORY_DAYS, lookupPerson, createShare, loadShares, getShare, acceptShare, updateShare,
-  removeShare, loadPosts, loadPostExtras, setReaction, addComment, deletePost, getSummary, loadEntries,
+  removeShare, loadMyPosts, loadFeed, loadPostsOf, loadGroups, saveGroup, deleteGroup, loadPeople, loadPostExtras, setReaction, addComment, deletePost, getSummary, loadEntries,
   loadPhotos, loadTreatments, getCard, notify
 } from '../data.js';
 import {
@@ -23,11 +23,12 @@ function postCard(post, name, avatarImg, meUid) {
   if (post.pct != null) facts.push(`Totalt ${signed(post.pct, '%')}`);
   if (post.dWaist != null) facts.push(`Midja ${signed(post.dWaist, 'cm')}`);
   const own = post.owner === meUid;
-  return `<article class="card post" data-owner="${post.owner}" data-pid="${post.id}">
+  const aud = { public: 'Alla i appen', group: post.audienceLabel || 'En grupp', people: post.audienceLabel || 'Vissa personer' }[post.audience] || 'De du delar med';
+  return `<article class="card post" data-pid="${post.id}">
     <div class="row" style="gap:10px">
       ${avatar(name, avatarImg, 34)}
       <span class="grow" style="font-size:14px"><strong>${esc(own ? 'Du' : name)}</strong> · ${esc(dLong(post.createdAt || new Date()))}</span>
-      ${own ? `<button class="icon-btn" style="box-shadow:none;background:transparent;width:36px;height:36px" data-delpost aria-label="Ta bort inlägget">${icon('trash', 18)}</button>` : ''}
+      ${own ? `<span class="chip neutral" style="font-size:12px;padding:3px 8px">${icon(post.audience === 'public' ? 'users' : 'lock', 12, 2)}${esc(aud)}</span><button class="icon-btn" style="box-shadow:none;background:transparent;width:36px;height:36px" data-delpost aria-label="Ta bort inlägget">${icon('trash', 18)}</button>` : ''}
     </div>
     ${facts.length ? `<div class="facts">${facts.map((f) => `<span class="fact num">${esc(f)}</span>`).join('')}</div>` : ''}
     ${post.text ? `<p style="font-size:15px;line-height:1.4">${esc(post.text)}</p>` : ''}
@@ -39,11 +40,13 @@ function postCard(post, name, avatarImg, meUid) {
   </article>`;
 }
 
-function wirePosts(container, ctx, onDeleted) {
+function wirePosts(container, ctx, posts) {
   const me = ctx.state.user.uid;
   const myName = ctx.state.profile.firstName;
   container.querySelectorAll('article.post').forEach(async (card) => {
-    const owner = card.dataset.owner, pid = card.dataset.pid;
+    const pid = card.dataset.pid;
+    const post = posts.find((p) => p.id === pid);
+    if (!post) return;
     let extras = { counts: {}, mine: null, comments: [] };
     const paint = () => {
       REACTIONS.forEach(([k]) => {
@@ -53,7 +56,7 @@ function wirePosts(container, ctx, onDeleted) {
       const n = extras.comments.length;
       card.querySelector('[data-cc]').textContent = n ? `${n} ${n === 1 ? 'kommentar' : 'kommentarer'}` : 'Kommentera';
     };
-    try { extras = await loadPostExtras(owner, pid, me); paint(); } catch (e) { console.warn(e); }
+    try { extras = await loadPostExtras(pid, me); paint(); } catch (e) { console.warn(e); }
 
     card.querySelectorAll('[data-r]').forEach((b) => b.addEventListener('click', async () => {
       const k = b.dataset.r;
@@ -62,7 +65,7 @@ function wirePosts(container, ctx, onDeleted) {
       if (next) extras.counts[next] = (extras.counts[next] || 0) + 1;
       extras.mine = next;
       paint();
-      try { await setReaction(owner, pid, me, myName, next); } catch (ex) { toast(errorText(ex)); }
+      try { await setReaction(post, me, myName, next); } catch (ex) { toast(errorText(ex)); }
     }));
 
     card.querySelector('[data-comments]').addEventListener('click', () => {
@@ -78,7 +81,7 @@ function wirePosts(container, ctx, onDeleted) {
         if (!text) return;
         await busy(e.currentTarget, async () => {
           try {
-            await addComment(owner, pid, me, myName, text);
+            await addComment(post, me, myName, text);
             extras.comments.push({ name: myName, text, createdAt: new Date() });
             paint();
             s.close();
@@ -91,7 +94,7 @@ function wirePosts(container, ctx, onDeleted) {
     const del = card.querySelector('[data-delpost]');
     if (del) del.addEventListener('click', async () => {
       if (!(await confirmSheet({ title: 'Ta bort inlägget?', text: 'Kommentarer och peppningar försvinner också.', ok: 'Ta bort', danger: true }))) return;
-      try { await deletePost(owner, pid); card.remove(); if (onDeleted) onDeleted(); } catch (ex) { toast(errorText(ex)); }
+      try { await deletePost(pid); card.remove(); } catch (ex) { toast(errorText(ex)); }
     });
   });
 }
@@ -138,13 +141,10 @@ export async function sharingView(el, ctx) {
     const mine = sh.out.filter((s) => s.status === 'active');
     const theirs = sh.in.filter((s) => s.status === 'active');
     const cards = {};
-    const [feedLists, ownPosts] = await Promise.all([
-      Promise.all(theirs.filter((s) => s.perms?.posts).map((s) => loadPosts(s.owner, 10))),
-      loadPosts(me, 10),
-      ...theirs.map(async (s) => { cards[s.owner] = await getCard(s.owner); })
-    ]);
-    const feed = feedLists.flat().sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)).slice(0, 20);
-    const nameOf = (uid) => cards[uid]?.firstName || theirs.find((s) => s.owner === uid)?.ownerName || '';
+    const [feed, ownPosts, groups] = await Promise.all([loadFeed(me), loadMyPosts(me, 10), loadGroups(me)]);
+    const ownerIds = [...new Set([...theirs.map((s) => s.owner), ...feed.map((p) => p.owner)])];
+    await Promise.all(ownerIds.map(async (u) => { cards[u] = await getCard(u); }));
+    const nameOf = (uid) => cards[uid]?.firstName || theirs.find((s) => s.owner === uid)?.ownerName || feed.find((p) => p.owner === uid)?.ownerName || '';
 
     el.innerHTML = `<div class="screen">
       <h1>Delning</h1>
@@ -168,7 +168,12 @@ export async function sharingView(el, ctx) {
         ${theirs.map((s) => `<a class="list-row" href="#/person/${s.owner}">${avatar(nameOf(s.owner), cards[s.owner]?.avatar, 40)}<span class="grow title">${esc(nameOf(s.owner))}</span>${icon('right', 18, 2)}</a>`).join('')}
       </div></section>` : ''}
 
-      ${feed.length ? `<section class="stack"><h2>Från familjen</h2>${feed.map((p) => postCard(p, nameOf(p.owner), cards[p.owner]?.avatar, me)).join('')}</section>` : ''}
+      <section class="stack"><div class="between"><h2>Mina grupper</h2><button class="btn outline sm" data-newgroup>${icon('plus', 18, 2.2)}Ny grupp</button></div>
+        ${groups.length ? `<div class="card flush">${groups.map((g) => `<button class="list-row" data-group="${g.id}">${icon('users', 22)}<span class="grow stack" style="gap:2px"><span class="title">${esc(g.name)}</span><span class="sub">${esc(g.members.map((m) => m.name).join(', ') || 'Inga medlemmar')}</span></span>${icon('right', 18, 2)}</button>`).join('')}</div>`
+          : '<p class="small muted">Gör en grupp, till exempel "Familjen", och välj den när du skriver ett inlägg.</p>'}
+      </section>
+
+      ${feed.length ? `<section class="stack"><h2>Från andra</h2>${feed.map((p) => postCard(p, nameOf(p.owner), cards[p.owner]?.avatar, me)).join('')}</section>` : ''}
 
       <section class="stack"><div class="between"><h2>Mina inlägg</h2><button class="btn primary sm" data-newpost>${icon('plus', 18, 2.2)}Nytt inlägg</button></div>
         ${ownPosts.length ? ownPosts.map((p) => postCard(p, myName, state.profile.avatar, me)).join('') : '<div class="card empty">Här syns det du delar. Tryck på Nytt inlägg för att skriva något.</div>'}
@@ -177,7 +182,37 @@ export async function sharingView(el, ctx) {
       ${!mine.length && !waiting.length && !theirs.length && !incoming.length ? '<p class="small muted">Du delar inte med någon än. Ingen kan se något av det du sparar.</p>' : ''}
     </div>`;
 
-    wirePosts(el, ctx);
+    wirePosts(el, ctx, [...feed, ...ownPosts]);
+
+    const openGroup = async (g) => {
+      const people = await loadPeople(me);
+      const chosen = new Set((g?.members || []).map((m) => m.uid));
+      const s = openSheet(`
+        <h2>${g ? 'Ändra grupp' : 'Ny grupp'}</h2>
+        <div class="field"><label for="gn">Namn på gruppen</label><input class="input" id="gn" maxlength="40" value="${esc(g?.name || '')}" placeholder="t.ex. Familjen"></div>
+        <div class="stack" style="gap:0"><span style="font-size:14px;font-weight:600">Vilka är med?</span>
+          ${people.length ? people.map((p) => `<label class="check"><input type="checkbox" value="${p.uid}" data-name="${esc(p.name)}" ${chosen.has(p.uid) ? 'checked' : ''}> ${esc(p.name)}</label>`).join('')
+            : '<p class="small muted">Du behöver dela med någon först, så att de syns här.</p>'}
+        </div>
+        <p class="error hidden" role="alert">Skriv ett namn och välj minst en person.</p>
+        <div class="btn-row">${g ? '<button class="btn danger-outline" data-del>Ta bort</button>' : '<button class="btn" data-close>Avbryt</button>'}<button class="btn primary" data-save>Spara</button></div>`, 'Grupp');
+      s.el.querySelector('[data-save]').addEventListener('click', async (e) => {
+        const name = s.el.querySelector('#gn').value.trim();
+        const members = [...s.el.querySelectorAll('input[type=checkbox]:checked')].map((c) => ({ uid: c.value, name: c.dataset.name }));
+        if (!name || !members.length) { s.el.querySelector('.error').classList.remove('hidden'); return; }
+        await busy(e.currentTarget, async () => {
+          try { await saveGroup(me, { id: g?.id, name, members }); s.close(); toast('Gruppen är sparad.'); await draw(); } catch (ex) { toast(errorText(ex)); }
+        });
+      });
+      const del = s.el.querySelector('[data-del]');
+      if (del) del.addEventListener('click', async () => {
+        s.close();
+        if (!(await confirmSheet({ title: `Ta bort gruppen ${g.name}?`, text: 'Inlägg du redan har delat påverkas inte.', ok: 'Ta bort', danger: true }))) return;
+        try { await deleteGroup(me, g.id); await draw(); } catch (ex) { toast(errorText(ex)); }
+      });
+    };
+    el.querySelector('[data-newgroup]').addEventListener('click', () => openGroup(null));
+    el.querySelectorAll('[data-group]').forEach((b) => b.addEventListener('click', () => openGroup(groups.find((g) => g.id === b.dataset.group))));
 
     el.querySelector('[data-newpost]').addEventListener('click', async () => {
       const entries = await loadEntries(me).catch(() => []);
@@ -287,7 +322,7 @@ export async function personView(el, ctx, owner) {
     P.measures ? getSummary(owner, 'measures') : null,
     P.history && (P.weight || P.measures) ? loadEntries(owner, share.historyRange === 'all' ? null : HISTORY_DAYS) : [],
     P.photos ? loadPhotos(owner) : [],
-    P.posts ? loadPosts(owner, 20) : [],
+    loadPostsOf(owner, me),
     P.treatment ? loadTreatments(owner) : []
   ]);
 
@@ -334,7 +369,7 @@ export async function personView(el, ctx, owner) {
     }));
   }
   if (P.treatment) parts.push(`<section class="stack"><h2>Behandling</h2>${treatmentList(treat, false)}</section>`);
-  if (P.posts) parts.push(`<section class="stack"><h2>Inlägg</h2>${posts.length ? posts.map((p) => postCard(p, name, card?.avatar, me)).join('') : '<div class="card empty">Inga inlägg än.</div>'}</section>`);
+  if (P.posts || posts.length) parts.push(`<section class="stack"><h2>Inlägg</h2>${posts.length ? posts.map((p) => postCard(p, name, card?.avatar, me)).join('') : '<div class="card empty">Inga inlägg än.</div>'}</section>`);
 
   el.innerHTML = `<div class="screen">
     ${backLink('#/delning', 'Delning')}
@@ -343,7 +378,7 @@ export async function personView(el, ctx, owner) {
     ${parts.join('') || '<div class="card empty">Inget delat än.</div>'}
     <button class="btn danger block" data-leave>Sluta följa ${esc(name)}</button>
   </div>`;
-  wirePosts(el, ctx);
+  wirePosts(el, ctx, posts);
   el.querySelector('[data-leave]').addEventListener('click', async () => {
     if (!(await confirmSheet({ title: `Sluta följa ${name}?`, text: 'Du ser inget mer förrän hen bjuder in dig igen.', ok: 'Sluta följa', danger: true }))) return;
     try { await removeShare(share.id); ctx.go('/delning'); } catch (ex) { toast(errorText(ex)); }

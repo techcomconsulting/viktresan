@@ -69,20 +69,43 @@ service cloud.firestore {
       match /photos/{id} { allow read: if shared(uid, 'photos'); }
       match /treatments/{id} { allow read: if shared(uid, 'treatment'); }
 
-      match /posts/{pid} {
-        allow read: if shared(uid, 'posts');
-        match /comments/{cid} {
-          allow read: if shared(uid, 'posts');
-          allow create: if shared(uid, 'posts')
-            && request.resource.data.uid == me()
-            && request.resource.data.text is string
-            && request.resource.data.text.size() <= 500;
-          allow delete: if signedIn() && resource.data.uid == me();
-        }
-        match /reactions/{rid} {
-          allow read: if shared(uid, 'posts');
-          allow write: if shared(uid, 'posts') && rid == me();
-        }
+    }
+
+    // Inlägg. Ägaren väljer vem som ser: de man delar med, en grupp, vissa personer eller alla i appen.
+    function canSeePost(p) {
+      return signedIn() && (
+        p.owner == me()
+        || p.public == true
+        || me() in p.viewers
+        || (p.audience == 'shares' && shared(p.owner, 'posts'))
+      );
+    }
+    function postData(pid) {
+      return get(/databases/$(database)/documents/posts/$(pid)).data;
+    }
+    match /posts/{pid} {
+      allow read: if canSeePost(resource.data);
+      allow create: if signedIn()
+        && request.resource.data.owner == me()
+        && request.resource.data.viewers is list
+        && request.resource.data.viewers.size() <= 50
+        && request.resource.data.public is bool
+        && request.resource.data.audience in ['shares', 'public', 'group', 'people'];
+      allow update: if signedIn() && resource.data.owner == me() && request.resource.data.owner == me();
+      allow delete: if signedIn() && resource.data.owner == me();
+
+      match /comments/{cid} {
+        allow read: if canSeePost(postData(pid));
+        allow create: if canSeePost(postData(pid))
+          && request.resource.data.uid == me()
+          && request.resource.data.text is string
+          && request.resource.data.text.size() <= 500;
+        allow delete: if signedIn() && (resource.data.uid == me() || postData(pid).owner == me());
+      }
+      match /reactions/{rid} {
+        allow read: if canSeePost(postData(pid));
+        allow write: if canSeePost(postData(pid)) && rid == me();
+        allow delete: if signedIn() && postData(pid).owner == me();
       }
     }
 
