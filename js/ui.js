@@ -217,6 +217,7 @@ export function errorText(e) {
     'auth/requires-recent-login': 'Logga in igen och försök sedan.',
     'auth/network-request-failed': 'Ingen internetanslutning.',
     'permission-denied': 'Du har inte behörighet till detta.',
+    'db-timeout': 'Databasen svarar inte. Kontrollera att Firestore är skapad.',
     'unavailable': 'Ingen internetanslutning.'
   };
   return map[code] || 'Något gick fel. Försök igen.';

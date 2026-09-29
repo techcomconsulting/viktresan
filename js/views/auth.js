@@ -66,15 +66,18 @@ export async function registerView(el, ctx) {
     if (!firstName) return show('Skriv ditt förnamn.');
     if (!/^[a-z0-9_]{3,20}$/.test(username)) return show('Användarnamnet ska ha 3–20 tecken: a–z, 0–9 eller _.');
     await busy(form.querySelector('[type=submit]'), async () => {
+      const timeout = (ms) => new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error('timeout'), { code: 'db-timeout' })), ms));
       try {
-        if (!(await usernameFree(username))) return show('Användarnamnet är upptaget.');
+        const free = await Promise.race([usernameFree(username), timeout(12000)]);
+        if (!free) return show('Användarnamnet är upptaget.');
         ctx.state.registering = true;
         const cred = await createUserWithEmailAndPassword(auth, form.em.value.trim(), form.pw.value);
         try {
-          await claimIdentity(cred.user, firstName, username);
+          await Promise.race([claimIdentity(cred.user, firstName, username), timeout(20000)]);
         } catch (ex) {
-          await deleteUser(cred.user).catch(() => {});
           ctx.state.registering = false;
+          if (ex.code === 'db-timeout') { ctx.state.user = cred.user; return show(errorText(ex)); }
+          await deleteUser(cred.user).catch(() => {});
           ctx.state.user = null;
           return show(ex.code === 'taken' ? 'Användarnamnet är upptaget.' : errorText(ex));
         }
