@@ -2,19 +2,9 @@
 import {
   db, auth, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, getDocs, query, where,
   orderBy, limit, writeBatch, serverTimestamp, Timestamp, runTransaction, onSnapshot,
-  deleteUser, reauthenticateWithCredential, EmailAuthProvider, getDocsFromCache, getDocsFromServer
+  deleteUser, reauthenticateWithCredential, EmailAuthProvider, getDocsFromServer
 } from './firebase.js';
 
-// Snabb läsning: visa det som redan finns sparat i mobilen direkt,
-// och hämta det senaste från nätet i bakgrunden till nästa gång.
-// Används bara för din egen data.
-const WARM_KEY = 'vt-warm';
-let warm;
-try { warm = new Set(JSON.parse(localStorage.getItem(WARM_KEY) || '[]')); } catch { warm = new Set(); }
-function markWarm(key) {
-  warm.add(key);
-  try { localStorage.setItem(WARM_KEY, JSON.stringify([...warm])); } catch { /* ingen lagring */ }
-}
 // Minne för den här sessionen: sidor som redan har visats öppnas direkt.
 const mem = new Map();
 let gen = 0;
@@ -33,21 +23,22 @@ function refresh(q, k) {
 async function fastDocs(q, key) {
   const k = (auth.currentUser?.uid || '') + ':' + key;
   if (mem.has(k)) { const s = mem.get(k).s; refresh(q, k); return s; }
-  if (warm.has(k)) {
-    try {
-      const s = await getDocsFromCache(q);
-      mem.set(k, { s, t: 0 });
-      refresh(q, k);
-      return s;
-    } catch { /* inte i cachen, hämta från nätet */ }
-  }
   const g = gen;
   const s = await getDocs(q);
   if (g === gen) mem.set(k, { s, t: Date.now() });
-  markWarm(k);
   return s;
 }
 const isMe = (uid) => auth.currentUser && auth.currentUser.uid === uid;
+
+// Hämtar det vanligaste i bakgrunden direkt efter inloggning,
+// så att menyerna öppnas snabbt redan första gången.
+export function prefetch(uid) {
+  const jobs = [
+    () => loadEntries(uid), () => loadNotifications(uid), () => loadShares(uid), () => loadGoals(uid),
+    () => loadPosts(uid, 10), () => loadTreatments(uid), () => loadPhotos(uid)
+  ];
+  jobs.forEach((j) => j().catch(() => {}));
+}
 
 const userDoc = (uid) => doc(db, 'users', uid);
 const sub = (uid, name) => collection(db, 'users', uid, name);

@@ -1,6 +1,6 @@
 // Startpunkten: håller koll på inloggning, sidor och menyn.
 import { isConfigured, auth, onAuthStateChanged } from './firebase.js';
-import { getProfile, watchUnread } from './data.js';
+import { getProfile, watchUnread, prefetch } from './data.js';
 import { icon, esc, $$ } from './ui.js';
 import { loginView, registerView, forgotView, onboardingView } from './views/auth.js';
 import { overviewView } from './views/overview.js';
@@ -108,6 +108,7 @@ async function startSession(user) {
   try { state.profile = await getProfile(user.uid); } catch { state.profile = null; }
   if (state.unsub) state.unsub();
   state.unsub = watchUnread(user.uid, (n) => { state.unread = n; updateBadges(); });
+  prefetch(user.uid);
 }
 ctx.startSession = startSession;
 
