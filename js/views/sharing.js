@@ -137,10 +137,12 @@ export async function sharingView(el, ctx) {
     const mine = sh.out.filter((s) => s.status === 'active');
     const theirs = sh.in.filter((s) => s.status === 'active');
     const cards = {};
-    await Promise.all(theirs.map(async (s) => { cards[s.owner] = await getCard(s.owner); }));
-    const feedLists = await Promise.all(theirs.filter((s) => s.perms?.posts).map((s) => loadPosts(s.owner, 10)));
+    const [feedLists, ownPosts] = await Promise.all([
+      Promise.all(theirs.filter((s) => s.perms?.posts).map((s) => loadPosts(s.owner, 10))),
+      loadPosts(me, 10),
+      ...theirs.map(async (s) => { cards[s.owner] = await getCard(s.owner); })
+    ]);
     const feed = feedLists.flat().sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)).slice(0, 20);
-    const ownPosts = await loadPosts(me, 10);
     const nameOf = (uid) => cards[uid]?.firstName || theirs.find((s) => s.owner === uid)?.ownerName || '';
 
     el.innerHTML = `<div class="screen">

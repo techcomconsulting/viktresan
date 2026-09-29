@@ -11,8 +11,7 @@ import { progressInfo } from './overview.js';
 export async function profileView(el, ctx) {
   const { state } = ctx;
   const uid = state.user.uid;
-  let goals = await loadGoals(uid);
-  const entries = await loadEntries(uid);
+  let [goals, entries] = await Promise.all([loadGoals(uid), loadEntries(uid)]);
 
   const draw = () => {
     const p = state.profile;

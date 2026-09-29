@@ -79,15 +79,17 @@ async function route() {
   const params = path.match(re).slice(1).map(decodeURIComponent);
   const my = ++routing;
   renderNav(state.user ? active : null);
-  root.innerHTML = '<div class="boot">Laddar…</div>';
-  window.scrollTo(0, 0);
+  const slow = setTimeout(() => { if (my === routing) root.innerHTML = '<div class="boot">Laddar…</div>'; }, 350);
   try {
     const html = document.createElement('div');
     await view(html, ctx, ...params);
+    clearTimeout(slow);
     if (my !== routing) return;
     root.replaceChildren(html);
+    window.scrollTo(0, 0);
     updateBadges();
   } catch (e) {
+    clearTimeout(slow);
     console.error(e);
     if (my !== routing) return;
     root.innerHTML = `<div class="screen"><h1>Hoppsan</h1><p class="muted">Sidan kunde inte laddas. Kontrollera internet och försök igen.</p><a class="btn primary" href="#/">Till översikten</a></div>`;

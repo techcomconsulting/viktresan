@@ -2,8 +2,33 @@
 import {
   db, auth, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, getDocs, query, where,
   orderBy, limit, writeBatch, serverTimestamp, Timestamp, runTransaction, onSnapshot,
-  deleteUser, reauthenticateWithCredential, EmailAuthProvider
+  deleteUser, reauthenticateWithCredential, EmailAuthProvider, getDocsFromCache, getDocsFromServer
 } from './firebase.js';
+
+// Snabb läsning: visa det som redan finns sparat i mobilen direkt,
+// och hämta det senaste från nätet i bakgrunden till nästa gång.
+// Används bara för din egen data.
+const WARM_KEY = 'vt-warm';
+let warm;
+try { warm = new Set(JSON.parse(localStorage.getItem(WARM_KEY) || '[]')); } catch { warm = new Set(); }
+function markWarm(key) {
+  warm.add(key);
+  try { localStorage.setItem(WARM_KEY, JSON.stringify([...warm])); } catch { /* ingen lagring */ }
+}
+async function fastDocs(q, key) {
+  const k = (auth.currentUser?.uid || '') + ':' + key;
+  if (warm.has(k)) {
+    try {
+      const s = await getDocsFromCache(q);
+      getDocsFromServer(q).catch(() => {});
+      return s;
+    } catch { /* inte i cachen, hämta från nätet */ }
+  }
+  const s = await getDocs(q);
+  markWarm(k);
+  return s;
+}
+const isMe = (uid) => auth.currentUser && auth.currentUser.uid === uid;
 
 const userDoc = (uid) => doc(db, 'users', uid);
 const sub = (uid, name) => collection(db, 'users', uid, name);
@@ -72,7 +97,8 @@ export async function loadEntries(uid, sinceDays = null) {
   const q = (name) => since
     ? query(sub(uid, name), where('at', '>', since), orderBy('at'))
     : query(sub(uid, name), orderBy('at'));
-  const [w, m] = await Promise.allSettled([getDocs(q('weights')), getDocs(q('measures'))]);
+  const get = (name) => (isMe(uid) && !since ? fastDocs(q(name), name) : getDocs(q(name)));
+  const [w, m] = await Promise.allSettled([get('weights'), get('measures')]);
   const map = new Map();
   if (w.status === 'fulfilled') w.value.forEach((d) => map.set(d.id, { id: d.id, at: d.data().at.toDate(), weight: d.data().weight }));
   if (m.status === 'fulfilled') m.value.forEach((d) => {
@@ -215,7 +241,8 @@ export async function createPost(uid, name, data) {
 
 export async function loadPosts(uid, n = 20) {
   try {
-    const s = await getDocs(query(sub(uid, 'posts'), orderBy('createdAt', 'desc'), limit(n)));
+    const q = query(sub(uid, 'posts'), orderBy('createdAt', 'desc'), limit(n));
+    const s = isMe(uid) ? await fastDocs(q, 'posts' + n) : await getDocs(q);
     return s.docs.map((d) => ({ id: d.id, owner: uid, ...d.data() }));
   } catch { return []; }
 }
@@ -268,7 +295,8 @@ export async function addComment(owner, pid, me, myName, text) {
 
 export async function loadPhotos(uid) {
   try {
-    const s = await getDocs(query(sub(uid, 'photos'), orderBy('at')));
+    const q = query(sub(uid, 'photos'), orderBy('at'));
+    const s = isMe(uid) ? await fastDocs(q, 'photos') : await getDocs(q);
     return s.docs.map((d) => ({ id: d.id, ...d.data(), at: d.data().at.toDate() }));
   } catch { return []; }
 }
@@ -281,7 +309,8 @@ export async function deletePhoto(uid, id) { await deleteDoc(subDoc(uid, 'photos
 
 export async function loadTreatments(uid) {
   try {
-    const s = await getDocs(query(sub(uid, 'treatments'), orderBy('date', 'desc')));
+    const q = query(sub(uid, 'treatments'), orderBy('date', 'desc'));
+    const s = isMe(uid) ? await fastDocs(q, 'treatments') : await getDocs(q);
     return s.docs.map((d) => ({ id: d.id, ...d.data() }));
   } catch { return []; }
 }
@@ -291,7 +320,7 @@ export async function deleteTreatment(uid, id) { await deleteDoc(subDoc(uid, 'tr
 // ---------- Personliga mål ----------
 
 export async function loadGoals(uid) {
-  const s = await getDocs(query(sub(uid, 'goals'), orderBy('createdAt')));
+  const s = await fastDocs(query(sub(uid, 'goals'), orderBy('createdAt')), 'goals');
   return s.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 export async function addGoal(uid, text) { await addDoc(sub(uid, 'goals'), { text, done: false, doneAt: null, createdAt: Timestamp.now() }); }
@@ -314,7 +343,7 @@ export function watchUnread(uid, cb) {
 }
 
 export async function loadNotifications(uid) {
-  const s = await getDocs(query(collection(db, 'notifications', uid, 'items'), orderBy('createdAt', 'desc'), limit(50)));
+  const s = await fastDocs(query(collection(db, 'notifications', uid, 'items'), orderBy('createdAt', 'desc'), limit(50)), 'notifs');
   return s.docs.map((d) => ({ id: d.id, ref: d.ref, ...d.data() }));
 }
 

@@ -8,7 +8,8 @@ import {
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager,
   doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, getDocs, query, where,
-  orderBy, limit, writeBatch, serverTimestamp, Timestamp, runTransaction, onSnapshot
+  orderBy, limit, writeBatch, serverTimestamp, Timestamp, runTransaction, onSnapshot,
+  getDocsFromCache, getDocsFromServer
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 export const isConfigured = !String(firebaseConfig.apiKey || '').startsWith('KLISTRA_IN');
@@ -23,5 +24,6 @@ export {
   onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut,
   sendPasswordResetEmail, deleteUser, reauthenticateWithCredential, EmailAuthProvider,
   doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, getDocs, query, where,
-  orderBy, limit, writeBatch, serverTimestamp, Timestamp, runTransaction, onSnapshot
+  orderBy, limit, writeBatch, serverTimestamp, Timestamp, runTransaction, onSnapshot,
+  getDocsFromCache, getDocsFromServer
 };
