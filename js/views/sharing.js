@@ -2,7 +2,7 @@
 import {
   PERMS, REACTIONS, HISTORY_DAYS, lookupPerson, createShare, loadShares, getShare, acceptShare, updateShare,
   removeShare, loadMyPosts, loadFeed, loadPostsOf, loadGroups, saveGroup, deleteGroup, loadPeople, loadPostExtras, setReaction, addComment, deletePost, getSummary, loadEntries,
-  loadPhotos, loadTreatments, getCard, notify
+  loadPhotos, loadTreatments, getCard, notify, lastValues
 } from '../data.js';
 import {
   esc, fmt1, signed, icon, avatar, backLink, openSheet, confirmSheet, toast, busy, errorText, dLong, dShort,
@@ -151,9 +151,12 @@ export async function feedView(el, ctx) {
   wirePosts(el, ctx, all);
   el.querySelector('[data-newpost]').addEventListener('click', async () => {
     const entries = await loadEntries(me).catch(() => []);
-    const last = entries[entries.length - 1] || null;
-    const prev = entries[entries.length - 2] || null;
-    const start = state.profile.startWeight ?? entries[0]?.weight;
+    // Senaste vikt och midja, jämfört med värdet innan.
+    const W = lastValues(entries, 'weight'), M = lastValues(entries, 'waist');
+    const at = [W.last?.at, M.last?.at].filter(Boolean).sort((a, b) => b - a)[0];
+    const last = at ? { at, weight: W.last?.weight ?? null, waist: M.last?.waist ?? null } : null;
+    const prev = { weight: W.prev?.weight ?? null, waist: M.prev?.waist ?? null };
+    const start = state.profile.startWeight ?? W.first?.weight;
     openPostSheet(ctx, last, prev, start, false);
   });
 }
@@ -368,9 +371,9 @@ export async function personView(el, ctx, owner) {
     </section>`);
   }
   if (entries.length >= 2) {
-    if (P.weight) parts.push(`<section class="card stack"><h2>Vikt över tid</h2>${lineChart(entries.map((e) => e.weight), { label: 'Vikt över tid' })}
+    if (P.weight) parts.push(`<section class="card stack"><h2>Vikt över tid</h2>${lineChart(entries.map((e) => e.weight).filter((x) => x != null), { label: 'Vikt över tid' })}
       <div class="between small muted"><span>${esc(dShort(entries[0].at))}</span><span>${esc(dShort(entries[entries.length - 1].at))}</span></div></section>`);
-    if (P.measures) parts.push(`<section class="card stack"><h2>Midja över tid</h2>${lineChart(entries.map((e) => e.waist), { h: 110, color: '#CF5F8C', fill: '#FCEEF4', label: 'Midja över tid' })}</section>`);
+    if (P.measures) parts.push(`<section class="card stack"><h2>Midja över tid</h2>${lineChart(entries.map((e) => e.waist).filter((x) => x != null), { h: 110, color: '#CF5F8C', fill: '#FCEEF4', label: 'Midja över tid' })}</section>`);
   }
   if (photos.length) {
     const kinds = [['face', 'Ansikte'], ['body', 'Helkropp']].filter(([k]) => photos.some((p) => p.kind === k));

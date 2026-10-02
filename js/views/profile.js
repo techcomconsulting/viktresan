@@ -16,8 +16,9 @@ export async function profileView(el, ctx) {
 
   const draw = () => {
     const p = state.profile;
-    const current = entries[entries.length - 1]?.weight;
-    const start = p.startWeight ?? entries[0]?.weight;
+    const wl = entries.filter((e) => e.weight != null);
+    const current = wl[wl.length - 1]?.weight;
+    const start = p.startWeight ?? wl[0]?.weight;
     const pr = progressInfo(start, p.goalWeight, current ?? start);
     const row = (label, value, action) => `<div class="list-row" style="min-height:52px"><span class="grow" style="font-size:16px">${label}</span><span style="font-weight:700" class="num">${value}</span>${action || ''}</div>`;
     const editBtn = (k) => `<button class="btn sm" style="height:34px;background:var(--accent-soft);color:var(--accent-dark)" data-edit="${k}">Ändra</button>`;
@@ -95,7 +96,7 @@ export async function profileView(el, ctx) {
       const k = b.dataset.edit;
       if (k === 'info') return editInfo();
       const isGoal = k === 'goal';
-      const cur = isGoal ? p.goalWeight : (p.startWeight ?? entries[0]?.weight);
+      const cur = isGoal ? p.goalWeight : (p.startWeight ?? entries.find((e) => e.weight != null)?.weight);
       const s = openSheet(`
         <h2>${isGoal ? 'Ändra målvikt' : 'Ändra startvikt'}</h2>
         <div class="field"><label for="v">${isGoal ? 'Målvikt' : 'Startvikt'} (kg)</label><input class="input" id="v" inputmode="decimal" value="${cur != null ? fmt1(cur) : ''}"></div>

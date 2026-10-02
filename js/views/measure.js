@@ -1,5 +1,5 @@
 // Ny mätning och resultatet efteråt.
-import { loadEntries, addEntry, METRICS, createPost, notify, addPhoto, loadPeople, loadGroups } from '../data.js';
+import { loadEntries, addEntry, METRICS, createPost, notify, addPhoto, loadPeople, loadGroups, lastValues } from '../data.js';
 import { esc, fmt1, signed, parseNum, icon, dDay, tHM, dLong, toast, busy, openSheet, errorText, resizeImage, round1 } from '../ui.js';
 import { progressInfo } from './overview.js';
 
@@ -7,7 +7,9 @@ export async function measureView(el, ctx) {
   const { state } = ctx;
   const uid = state.user.uid;
   const entries = await loadEntries(uid);
-  const prev = entries[entries.length - 1] || null;
+  // Senaste kända värdet för varje mått, även om det fylldes i vid olika tillfällen.
+  const prev = entries.length ? Object.fromEntries([['at', entries[entries.length - 1].at],
+    ...METRICS.map(([k]) => [k, lastValues(entries, k).last?.[k] ?? null])]) : null;
   const now = new Date();
 
   el.innerHTML = `<div class="screen no-nav">
@@ -29,10 +31,10 @@ export async function measureView(el, ctx) {
               <span class="small muted">${prev && prev[key] != null ? `Förra: ${fmt1(prev[key])} ${unit}` : unit === 'kg' ? 'I kilo' : 'I centimeter'}</span>
             </div>
             <span class="chip neutral hidden" data-delta="${key}"></span>
-            <div class="unit-input"><input id="m-${key}" name="${key}" inputmode="decimal" autocomplete="off" required><span>${unit}</span></div>
+            <div class="unit-input"><input id="m-${key}" name="${key}" inputmode="decimal" autocomplete="off" placeholder="–"><span>${unit}</span></div>
           </div>`).join('')}
       </div>
-      <p class="small muted row" style="gap:8px">${icon('info', 16)}Alla fem värden krävs. Vikt i kg, mått i cm.</p>
+      <p class="small muted row" style="gap:8px">${icon('info', 16)}Fyll i det du vill. Minst ett värde. Vikt i kg, mått i cm.</p>
       <p class="error hidden" role="alert"></p>
       <button class="btn primary block" type="submit">Spara mätning</button>
     </form>
@@ -57,7 +59,9 @@ export async function measureView(el, ctx) {
     err.classList.add('hidden');
     const vals = {};
     for (const [key, label] of METRICS) {
-      const v = parseNum(form.querySelector(`[name=${key}]`).value);
+      const raw = form.querySelector(`[name=${key}]`).value.trim();
+      if (!raw) { vals[key] = null; continue; }
+      const v = parseNum(raw);
       const [min, max] = key === 'weight' ? [25, 350] : [5, 250];
       if (v == null || v < min || v > max) {
         err.textContent = `Kontrollera ${label.toLowerCase()}.`;
@@ -67,13 +71,19 @@ export async function measureView(el, ctx) {
       }
       vals[key] = round1(v);
     }
+    if (METRICS.every(([k]) => vals[k] == null)) {
+      err.textContent = 'Fyll i minst ett värde.';
+      err.classList.remove('hidden');
+      form.querySelector('[name=weight]').focus();
+      return;
+    }
     await busy(form.querySelector('[type=submit]'), async () => {
       try {
         const saved = await addEntry(uid, state.profile, entries, vals);
         if (state.profile.startWeight == null) state.profile.startWeight = saved.startWeight;
         const start = state.profile.startWeight;
         let milestone = null;
-        if (prev) {
+        if (prev && prev.weight != null && saved.weight != null) {
           const a = progressInfo(start, state.profile.goalWeight, prev.weight);
           const b = progressInfo(start, state.profile.goalWeight, saved.weight);
           if (a && b) {
@@ -98,7 +108,7 @@ export async function resultView(el, ctx) {
   if (!r) { ctx.go('/'); return; }
   const { entry, prev, first, milestone, start } = r;
 
-  const rows = METRICS.map(([key, label, unit]) => {
+  const rows = METRICS.filter(([key]) => entry[key] != null).map(([key, label, unit]) => {
     const d = prev && prev[key] != null ? entry[key] - prev[key] : null;
     return `<div class="list-row" style="min-height:54px">
       <span class="grow title">${label}</span>
@@ -178,9 +188,10 @@ export async function openPostSheet(ctx, entry, prev, start, fresh = true) {
   const { state } = ctx;
   const me = state.user.uid;
   const [people, groups] = await Promise.all([loadPeople(me).catch(() => []), loadGroups(me)]);
-  const d = entry && prev ? entry.weight - prev.weight : null;
-  const dw = entry && prev && prev.waist != null ? entry.waist - prev.waist : null;
-  const pct = entry && start ? ((entry.weight - start) / start) * 100 : null;
+  if (entry && entry.weight == null && entry.waist == null) entry = null;
+  const d = entry && prev && entry.weight != null && prev.weight != null ? entry.weight - prev.weight : null;
+  const dw = entry && prev && entry.waist != null && prev.waist != null ? entry.waist - prev.waist : null;
+  const pct = entry && start && entry.weight != null ? ((entry.weight - start) / start) * 100 : null;
   const on = fresh ? 'checked' : '';
   const s = openSheet(`
     <h2>${fresh ? 'Dela ditt framsteg' : 'Nytt inlägg'}</h2>
@@ -198,7 +209,7 @@ export async function openPostSheet(ctx, entry, prev, start, fresh = true) {
     <p class="banner pink hidden" style="font-size:14px;padding:10px 12px" data-pubnote>Alla som har ett konto i appen kan se det här inlägget.</p>
     <div class="field"><label for="pt">Din text</label><textarea class="input" id="pt" maxlength="500" placeholder="Hur har veckan varit?"></textarea></div>
     ${entry ? `<p class="small muted" style="margin-bottom:-8px">Från din senaste mätning, ${esc(dLong(entry.at))}:</p>
-      <label class="check"><input type="checkbox" name="w"> Visa vikten (${fmt1(entry.weight)} kg)</label>
+      ${entry.weight != null ? `<label class="check"><input type="checkbox" name="w"> Visa vikten (${fmt1(entry.weight)} kg)</label>` : ''}
       ${d != null ? `<label class="check"><input type="checkbox" name="d" ${on}> Visa förändringen (${signed(d, 'kg')}${pct != null ? `, totalt ${signed(pct, '%')}` : ''})</label>` : ''}
       ${dw != null ? `<label class="check"><input type="checkbox" name="m" ${on}> Visa midjan (${signed(dw, 'cm')})</label>` : ''}` : ''}
     <p class="error hidden" role="alert">Skriv något eller välj vad som ska visas.</p>
@@ -225,7 +236,7 @@ export async function openPostSheet(ctx, entry, prev, start, fresh = true) {
     }
     const data = {
       text: s.el.querySelector('#pt').value.trim().slice(0, 500),
-      weight: q('w') ? entry.weight : null,
+      weight: q('w') && entry ? entry.weight : null,
       dWeight: q('d') && d != null ? round1(d) : null,
       pct: q('d') && pct != null ? round1(pct) : null,
       dWaist: q('m') && dw != null ? round1(dw) : null

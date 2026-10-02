@@ -119,23 +119,31 @@ export async function loadEntries(uid, sinceDays = null) {
   return [...map.values()].sort((a, b) => a.at - b.at);
 }
 
+// Senaste och näst senaste värdet för ett visst mått (hoppar över tomma).
+export function lastValues(entries, key) {
+  const v = entries.filter((e) => e[key] != null);
+  return { first: v[0] || null, last: v[v.length - 1] || null, prev: v[v.length - 2] || null, list: v };
+}
+
 function writeSummaries(b, uid, profile, entries) {
   const list = [...entries].sort((a, b2) => a.at - b2.at);
-  const first = list[0], last = list[list.length - 1], prev = list[list.length - 2] || null;
-  if (!last) {
-    b.delete(subDoc(uid, 'summary', 'weight'));
-    b.delete(subDoc(uid, 'summary', 'measures'));
-    return;
-  }
-  const start = profile.startWeight ?? first.weight;
-  b.set(subDoc(uid, 'summary', 'weight'), {
-    start, goal: profile.goalWeight ?? null, current: last.weight, previous: prev ? prev.weight : null,
-    currentAt: Timestamp.fromDate(last.at), count: list.length
-  });
-  b.set(subDoc(uid, 'summary', 'measures'), {
-    start: pickMeasures(first), current: pickMeasures(last), previous: pickMeasures(prev),
-    currentAt: Timestamp.fromDate(last.at)
-  });
+  const W = lastValues(list, 'weight');
+  if (W.last) {
+    b.set(subDoc(uid, 'summary', 'weight'), {
+      start: profile.startWeight ?? W.first.weight, goal: profile.goalWeight ?? null,
+      current: W.last.weight, previous: W.prev ? W.prev.weight : null,
+      currentAt: Timestamp.fromDate(W.last.at), count: W.list.length
+    });
+  } else b.delete(subDoc(uid, 'summary', 'weight'));
+  const keys = ['arm', 'waist', 'thigh', 'hip'];
+  const per = Object.fromEntries(keys.map((k) => [k, lastValues(list, k)]));
+  const pick = (which) => Object.fromEntries(keys.map((k) => [k, per[k][which] ? per[k][which][k] : null]));
+  const latest = keys.map((k) => per[k].last?.at).filter(Boolean).sort((a, c) => c - a)[0];
+  if (latest) {
+    b.set(subDoc(uid, 'summary', 'measures'), {
+      start: pick('first'), current: pick('last'), previous: pick('prev'), currentAt: Timestamp.fromDate(latest)
+    });
+  } else b.delete(subDoc(uid, 'summary', 'measures'));
 }
 
 export async function addEntry(uid, profile, prevEntries, vals) {
@@ -143,10 +151,12 @@ export async function addEntry(uid, profile, prevEntries, vals) {
   const ref = doc(sub(uid, 'weights'));
   const at = Timestamp.now();
   const b = writeBatch(db);
-  b.set(ref, { at, weight: vals.weight });
-  b.set(subDoc(uid, 'measures', ref.id), { at, arm: vals.arm, waist: vals.waist, thigh: vals.thigh, hip: vals.hip });
+  const v = { weight: null, arm: null, waist: null, thigh: null, hip: null, ...vals };
+  b.set(ref, { at, weight: v.weight });
+  b.set(subDoc(uid, 'measures', ref.id), { at, arm: v.arm, waist: v.waist, thigh: v.thigh, hip: v.hip });
+  vals = v;
   const p = { ...profile };
-  if (p.startWeight == null) {
+  if (p.startWeight == null && vals.weight != null) {
     p.startWeight = vals.weight;
     b.set(userDoc(uid), { startWeight: vals.weight }, { merge: true });
   }

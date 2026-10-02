@@ -1,5 +1,6 @@
 // Översikt: den enkla startsidan.
 import { loadEntries, loadFeed, getCard } from '../data.js';
+const withWeight = (list) => list.filter((e) => e.weight != null);
 import { installBanner, wireInstallBanner } from '../install.js';
 import { esc, fmt1, signed, icon, bmi, bmiScale, dDay, dShort, round1, avatar } from '../ui.js';
 
@@ -13,7 +14,8 @@ export function progressInfo(start, goal, current) {
   return { total: Math.abs(total), done, pct, miles, next, left: Math.max(0, total > 0 ? current - goal : goal - current) };
 }
 
-export function motivation(entries, start) {
+export function motivation(all, start) {
+  const entries = withWeight(all);
   if (!entries.length) return 'Välkommen! Gör din första mätning så har du en startpunkt.';
   const last = entries[entries.length - 1];
   const lost = round1(start - last.weight);
@@ -41,9 +43,10 @@ export async function overviewView(el, ctx) {
   const [entries, feed] = await Promise.all([loadEntries(uid), loadFeed(uid, 1).catch(() => [])]);
   const latest = feed[0] || null;
   const latestCard = latest ? await getCard(latest.owner) : null;
-  const last = entries[entries.length - 1];
-  const prev = entries[entries.length - 2];
-  const start = p.startWeight ?? entries[0]?.weight;
+  const wEntries = withWeight(entries);
+  const last = wEntries[wEntries.length - 1];
+  const prev = wEntries[wEntries.length - 2];
+  const start = p.startWeight ?? wEntries[0]?.weight;
 
   const header = `<header class="between">
     <div class="stack" style="gap:2px">
@@ -57,9 +60,9 @@ export async function overviewView(el, ctx) {
     el.innerHTML = `<div class="screen">${header}
       ${installBanner()}
       <div class="card stack-lg">
-        <h2>Dags för första mätningen</h2>
-        <p class="muted">Du mäter vikt, arm, midja, lår och höft. Det tar två minuter.</p>
-        <a class="btn primary block" href="#/matning">Gör första mätningen</a>
+        <h2>${entries.length ? 'Lägg in din vikt' : 'Dags för första mätningen'}</h2>
+        <p class="muted">${entries.length ? 'Dina mått är sparade. Lägg in vikten nästa gång, så ser du dina framsteg här.' : 'Fyll i det du vill: vikt, arm, midja, lår eller höft.'}</p>
+        <a class="btn primary block" href="#/matning">${entries.length ? 'Ny mätning' : 'Gör första mätningen'}</a>
       </div></div>`;
     wireInstallBanner(el);
     return;
@@ -102,7 +105,7 @@ export async function overviewView(el, ctx) {
       <a class="stat" href="#/historik">
         <span class="label">Sedan start</span>
         <span class="value num" style="color:${total <= 0 ? 'var(--accent)' : 'var(--ink)'}">${signed(total, 'kg')}</span>
-        <span class="small muted">${start ? signed((total / start) * 100, '%') : ''} sedan ${esc(dShort(entries[0].at))}</span>
+        <span class="small muted">${start ? signed((total / start) * 100, '%') : ''} sedan ${esc(dShort(wEntries[0].at))}</span>
       </a>
     </div>
     ${latest ? latestPost(latest, latestCard) : ''}
