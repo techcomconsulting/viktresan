@@ -12,13 +12,14 @@ import { buildTimeline, photoImg } from './photos.js';
 import { treatmentList } from './treatment.js';
 import { openPostSheet } from './measure.js';
 
-const permText = (s) => PERMS.filter(([k]) => s.perms?.[k]).map(([, l]) => l.split(' ')[0]).join(' · ') || 'Inget valt än';
+const permText = (s) => PERMS.filter(([k]) => s.perms?.[k]).map(([k, l]) => (k === 'weight' && !s.perms.weightKg ? 'Vikt i %' : l.split(' ')[0])).join(' · ') || 'Inget valt än';
 
 // ---------- Inlägg ----------
 
 function postCard(post, name, avatarImg, meUid) {
   const facts = [];
   if (post.weight != null) facts.push(`Vikt ${fmt1(post.weight)} kg`);
+  if (post.pLast != null) facts.push(`${signed(post.pLast, '%')} sedan förra`);
   if (post.dWeight != null) facts.push(`${signed(post.dWeight, 'kg')}`);
   if (post.pct != null) facts.push(`Totalt ${signed(post.pct, '%')}`);
   if (post.dWaist != null) facts.push(`Midja ${signed(post.dWaist, 'cm')}`);
@@ -106,6 +107,9 @@ function permsEditor(perms, range) {
     <div class="list-row" style="flex-wrap:wrap">
       <div class="grow stack" style="gap:2px"><span class="title">${l}</span><span class="sub">${sub}</span></div>
       <button type="button" class="toggle" data-perm="${k}" aria-pressed="${!!perms[k]}" aria-label="${l}"></button>
+      ${k === 'weight' ? `<div class="seg ${perms.weight ? '' : 'hidden'}" data-wmode style="width:100%">
+        <button type="button" data-wm="pct" aria-pressed="${!perms.weightKg}">Bara procent</button>
+        <button type="button" data-wm="kg" aria-pressed="${!!perms.weightKg}">Kilo och procent</button></div>` : ''}
       ${k === 'history' ? `<div class="seg ${perms.history ? '' : 'hidden'}" data-range style="width:100%">
         <button type="button" data-rv="3m" aria-pressed="${range !== 'all'}">Senaste 3 mån</button>
         <button type="button" data-rv="all" aria-pressed="${range === 'all'}">All historik</button></div>` : ''}
@@ -118,6 +122,12 @@ function wirePerms(root, perms, rangeRef, onChange) {
     perms[k] = !perms[k];
     b.setAttribute('aria-pressed', String(perms[k]));
     if (k === 'history') root.querySelector('[data-range]').classList.toggle('hidden', !perms.history);
+    if (k === 'weight') root.querySelector('[data-wmode]').classList.toggle('hidden', !perms.weight);
+    onChange && onChange();
+  }));
+  root.querySelectorAll('[data-wm]').forEach((b) => b.addEventListener('click', () => {
+    perms.weightKg = b.dataset.wm === 'kg';
+    root.querySelectorAll('[data-wm]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
     onChange && onChange();
   }));
   root.querySelectorAll('[data-rv]').forEach((b) => b.addEventListener('click', () => {
@@ -256,7 +266,7 @@ export async function sharingView(el, ctx) {
     });
 
     const openInviteSheet = (person) => {
-      const perms = { weight: true, measures: false, history: false, photos: false, posts: true, treatment: false };
+      const perms = { weight: true, weightKg: false, measures: false, history: false, photos: false, posts: true, treatment: false };
       const range = { value: '3m' };
       const s = openSheet(`
         <div class="row">${avatar(person.firstName, person.avatar, 48)}<h2>Dela med ${esc(person.firstName)}?</h2></div>
@@ -335,16 +345,34 @@ export async function personView(el, ctx, owner) {
   const P = share.perms || {};
   const card = await getCard(owner);
   const name = card?.firstName || share.ownerName;
-  const [w, m, entries, photos, posts, treat] = await Promise.all([
-    P.weight ? getSummary(owner, 'weight') : null,
+  const kg = !!(P.weight && P.weightKg);
+  const [w, pw, ph, m, entries, photos, posts, treat] = await Promise.all([
+    kg ? getSummary(owner, 'weight') : null,
+    P.weight && !kg ? getSummary(owner, 'percent') : null,
+    P.weight && !kg && P.history ? getSummary(owner, share.historyRange === 'all' ? 'pctAll' : 'pct3m') : null,
     P.measures ? getSummary(owner, 'measures') : null,
-    P.history && (P.weight || P.measures) ? loadEntries(owner, share.historyRange === 'all' ? null : HISTORY_DAYS) : [],
+    P.history && (kg || P.measures) ? loadEntries(owner, share.historyRange === 'all' ? null : HISTORY_DAYS) : [],
     P.photos ? loadPhotos(owner) : [],
     loadPostsOf(owner, me),
     P.treatment ? loadTreatments(owner) : []
   ]);
 
   const parts = [];
+  if (pw) {
+    parts.push(`<section class="card stack-lg">
+      <div class="between" style="align-items:flex-start">
+        <div class="stack" style="gap:6px"><span class="muted" style="font-size:14px;font-weight:600">Sedan start</span>
+          <span class="big num" style="font-size:44px;color:${pw.total <= 0 ? 'var(--accent)' : 'var(--ink)'}">${signed(pw.total, '%')}</span></div>
+        ${pw.sinceLast != null ? `<div class="stack" style="align-items:flex-end;gap:4px"><span class="chip ${pw.sinceLast <= 0 ? 'good' : 'neutral'}">${signed(pw.sinceLast, '%')}</span><span class="small muted">sedan förra</span></div>` : ''}
+      </div>
+      ${pw.goalPct != null ? `<div class="stack" style="gap:6px"><div class="between"><span style="font-weight:600">Mot målet</span><b style="color:var(--accent)">${pw.goalPct} %</b></div>
+        <div class="progress"><span style="width:${pw.goalPct}%"></span></div></div>` : ''}
+      <span class="small muted">${esc(name)} visar bara procent. Senast uppdaterad ${esc(dShort(pw.currentAt))}</span>
+    </section>`);
+    const ser = (ph?.series || []).filter((x) => x.p != null);
+    if (ser.length >= 2) parts.push(`<section class="card stack"><h2>Förändring över tid (%)</h2>${lineChart(ser.map((x) => x.p), { label: 'Förändring i procent över tid' })}
+      <div class="between small muted"><span>${esc(dShort(new Date(ser[0].t)))}</span><span>${esc(dShort(new Date(ser[ser.length - 1].t)))}</span></div></section>`);
+  }
   if (w) {
     const total = w.current - w.start;
     const pct = w.start ? (total / w.start) * 100 : null;
@@ -366,12 +394,12 @@ export async function personView(el, ctx, owner) {
     const rows = [['waist', 'Midja'], ['arm', 'Arm'], ['thigh', 'Lår'], ['hip', 'Höft']];
     parts.push(`<section class="card stack" style="padding-bottom:6px"><h2>Kroppsmått</h2>
       ${rows.map(([k, l]) => `<div class="between" style="padding:10px 0;border-top:1px solid var(--line)"><span class="grow" style="font-weight:600">${l}</span>
-        <span class="num">${fmt1(m.current[k])} cm</span>
-        ${m.previous ? `<span class="num small muted" style="width:70px;text-align:right">${signed(m.current[k] - m.previous[k], 'cm')}</span>` : ''}</div>`).join('')}
+        <span class="num">${m.current[k] != null ? fmt1(m.current[k]) + ' cm' : '–'}</span>
+        ${m.previous && m.previous[k] != null && m.current[k] != null ? `<span class="num small muted" style="width:70px;text-align:right">${signed(m.current[k] - m.previous[k], 'cm')}</span>` : '<span style="width:70px"></span>'}</div>`).join('')}
     </section>`);
   }
   if (entries.length >= 2) {
-    if (P.weight) parts.push(`<section class="card stack"><h2>Vikt över tid</h2>${lineChart(entries.map((e) => e.weight).filter((x) => x != null), { label: 'Vikt över tid' })}
+    if (kg) parts.push(`<section class="card stack"><h2>Vikt över tid</h2>${lineChart(entries.map((e) => e.weight).filter((x) => x != null), { label: 'Vikt över tid' })}
       <div class="between small muted"><span>${esc(dShort(entries[0].at))}</span><span>${esc(dShort(entries[entries.length - 1].at))}</span></div></section>`);
     if (P.measures) parts.push(`<section class="card stack"><h2>Midja över tid</h2>${lineChart(entries.map((e) => e.waist).filter((x) => x != null), { h: 110, color: '#CF5F8C', fill: '#FCEEF4', label: 'Midja över tid' })}</section>`);
   }

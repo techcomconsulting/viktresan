@@ -1,6 +1,6 @@
 // Startpunkten: håller koll på inloggning, sidor och menyn.
 import { isConfigured, auth, onAuthStateChanged } from './firebase.js';
-import { getProfile, watchUnread, prefetch } from './data.js';
+import { getProfile, watchUnread, prefetch, ensurePercent } from './data.js';
 import { icon, esc, $$ } from './ui.js';
 import './install.js';
 import { loginView, registerView, forgotView, onboardingView } from './views/auth.js';
@@ -111,6 +111,7 @@ async function startSession(user) {
   if (state.unsub) state.unsub();
   state.unsub = watchUnread(user.uid, (n) => { state.unread = n; updateBadges(); });
   prefetch(user.uid);
+  if (state.profile?.onboarded) ensurePercent(user.uid, state.profile).catch(() => {});
 }
 ctx.startSession = startSession;
 

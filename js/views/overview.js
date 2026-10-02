@@ -28,6 +28,8 @@ export function motivation(all, start) {
 function latestPost(p, card) {
   const name = card?.firstName || p.ownerName || '';
   let text = p.text || '';
+  if (!text && p.pLast != null) text = `${signed(p.pLast, '%')} sedan förra vägningen`;
+  if (!text && p.pct != null) text = `${signed(p.pct, '%')} totalt`;
   if (!text && p.dWeight != null) text = `${signed(p.dWeight, 'kg')} sedan förra mätningen`;
   if (text.length > 70) text = text.slice(0, 68) + '…';
   return `<a class="card row" href="#/flode" style="text-decoration:none;color:inherit;padding:12px 14px">

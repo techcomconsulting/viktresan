@@ -192,6 +192,7 @@ export async function openPostSheet(ctx, entry, prev, start, fresh = true) {
   const d = entry && prev && entry.weight != null && prev.weight != null ? entry.weight - prev.weight : null;
   const dw = entry && prev && entry.waist != null && prev.waist != null ? entry.waist - prev.waist : null;
   const pct = entry && start && entry.weight != null ? ((entry.weight - start) / start) * 100 : null;
+  const pLast = d != null && prev.weight ? (d / prev.weight) * 100 : null;
   const on = fresh ? 'checked' : '';
   const s = openSheet(`
     <h2>${fresh ? 'Dela ditt framsteg' : 'Nytt inlägg'}</h2>
@@ -209,8 +210,11 @@ export async function openPostSheet(ctx, entry, prev, start, fresh = true) {
     <p class="banner pink hidden" style="font-size:14px;padding:10px 12px" data-pubnote>Alla som har ett konto i appen kan se det här inlägget.</p>
     <div class="field"><label for="pt">Din text</label><textarea class="input" id="pt" maxlength="500" placeholder="Hur har veckan varit?"></textarea></div>
     ${entry ? `<p class="small muted" style="margin-bottom:-8px">Från din senaste mätning, ${esc(dLong(entry.at))}:</p>
-      ${entry.weight != null ? `<label class="check"><input type="checkbox" name="w"> Visa vikten (${fmt1(entry.weight)} kg)</label>` : ''}
-      ${d != null ? `<label class="check"><input type="checkbox" name="d" ${on}> Visa förändringen (${signed(d, 'kg')}${pct != null ? `, totalt ${signed(pct, '%')}` : ''})</label>` : ''}
+      ${pLast != null ? `<label class="check"><input type="checkbox" name="pl" ${on}> Procent sedan förra vägningen (${signed(pLast, '%')})</label>` : ''}
+      ${pct != null ? `<label class="check"><input type="checkbox" name="ptot" ${on}> Procent totalt sedan start (${signed(pct, '%')})</label>` : ''}
+      <p class="small muted" style="margin:4px 0 -8px">Kilo är avbockat från början. Bocka i om du vill visa det.</p>
+      ${d != null ? `<label class="check"><input type="checkbox" name="d"> Förändring i kilo (${signed(d, 'kg')})</label>` : ''}
+      ${entry.weight != null ? `<label class="check"><input type="checkbox" name="w"> Vad jag väger (${fmt1(entry.weight)} kg)</label>` : ''}
       ${dw != null ? `<label class="check"><input type="checkbox" name="m" ${on}> Visa midjan (${signed(dw, 'cm')})</label>` : ''}` : ''}
     <p class="error hidden" role="alert">Skriv något eller välj vad som ska visas.</p>
     <div class="btn-row"><button class="btn" data-close>Avbryt</button><button class="btn primary" data-post>Dela</button></div>`, 'Inlägg');
@@ -238,10 +242,11 @@ export async function openPostSheet(ctx, entry, prev, start, fresh = true) {
       text: s.el.querySelector('#pt').value.trim().slice(0, 500),
       weight: q('w') && entry ? entry.weight : null,
       dWeight: q('d') && d != null ? round1(d) : null,
-      pct: q('d') && pct != null ? round1(pct) : null,
+      pct: q('ptot') && pct != null ? round1(pct) : null,
+      pLast: q('pl') && pLast != null ? round1(pLast) : null,
       dWaist: q('m') && dw != null ? round1(dw) : null
     };
-    if (!data.text && data.weight == null && data.dWeight == null && data.dWaist == null) {
+    if (!data.text && data.weight == null && data.dWeight == null && data.dWaist == null && data.pct == null && data.pLast == null) {
       err.textContent = 'Skriv något eller välj vad som ska visas.';
       err.classList.remove('hidden');
       return;

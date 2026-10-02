@@ -58,10 +58,18 @@ service cloud.firestore {
       }
 
       // Det andra får se, bara om du har delat det.
-      match /summary/weight { allow get: if shared(uid, 'weight'); }
+      // Vikt i kilo: bara om ägaren valt "Kilo och procent".
+      match /summary/weight { allow get: if shared(uid, 'weight') && shared(uid, 'weightKg'); }
+      // Vikt i procent: räcker att vikt är delad.
+      match /summary/percent { allow get: if shared(uid, 'weight'); }
+      match /summary/pct3m { allow get: if shared(uid, 'weight') && shared(uid, 'history'); }
+      match /summary/pctAll {
+        allow get: if shared(uid, 'weight') && shared(uid, 'history')
+          && get(sharePath(uid)).data.historyRange == 'all';
+      }
       match /summary/measures { allow get: if shared(uid, 'measures'); }
       match /weights/{id} {
-        allow read: if shared(uid, 'weight') && shared(uid, 'history') && inRange(uid);
+        allow read: if shared(uid, 'weight') && shared(uid, 'weightKg') && shared(uid, 'history') && inRange(uid);
       }
       match /measures/{id} {
         allow read: if shared(uid, 'measures') && shared(uid, 'history') && inRange(uid);

@@ -134,7 +134,23 @@ function writeSummaries(b, uid, profile, entries) {
       current: W.last.weight, previous: W.prev ? W.prev.weight : null,
       currentAt: Timestamp.fromDate(W.last.at), count: W.list.length
     });
-  } else b.delete(subDoc(uid, 'summary', 'weight'));
+    // Bara procent, inga kilo. Det här får den se som bara får se procent.
+    const start = profile.startWeight ?? W.first.weight;
+    const pc = (w) => (start ? Math.round(((w - start) / start) * 1000) / 10 : null);
+    const goal = profile.goalWeight;
+    const goalPct = goal != null && start !== goal ? Math.max(0, Math.min(100, Math.round(((start - W.last.weight) / (start - goal)) * 100))) : null;
+    const series = W.list.map((e) => ({ t: e.at.getTime(), p: pc(e.weight) }));
+    const cut = Date.now() - 92 * 86400000;
+    b.set(subDoc(uid, 'summary', 'percent'), {
+      total: pc(W.last.weight),
+      sinceLast: W.prev ? Math.round(((W.last.weight - W.prev.weight) / W.prev.weight) * 1000) / 10 : null,
+      goalPct, currentAt: Timestamp.fromDate(W.last.at)
+    });
+    b.set(subDoc(uid, 'summary', 'pctAll'), { series: series.slice(-500) });
+    b.set(subDoc(uid, 'summary', 'pct3m'), { series: series.filter((x) => x.t >= cut) });
+  } else {
+    ['weight', 'percent', 'pctAll', 'pct3m'].forEach((k) => b.delete(subDoc(uid, 'summary', k)));
+  }
   const keys = ['arm', 'waist', 'thigh', 'hip'];
   const per = Object.fromEntries(keys.map((k) => [k, lastValues(list, k)]));
   const pick = (which) => Object.fromEntries(keys.map((k) => [k, per[k][which] ? per[k][which][k] : null]));
@@ -180,6 +196,14 @@ export async function refreshSummaries(uid, profile) {
   const b = writeBatch(db);
   writeSummaries(b, uid, profile, entries);
   await b.commit();
+}
+
+// Skapar procent-sammanfattningen en gång för den som hade data före den här versionen.
+export async function ensurePercent(uid, profile) {
+  const flag = 'vt-pct-v1-' + uid;
+  try { if (localStorage.getItem(flag)) return; } catch { return; }
+  await refreshSummaries(uid, profile);
+  try { localStorage.setItem(flag, '1'); } catch { /* ok */ }
 }
 
 export async function getSummary(uid, which) {
