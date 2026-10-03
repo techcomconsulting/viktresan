@@ -227,7 +227,10 @@ export function errorText(e) {
     'auth/network-request-failed': 'Ingen internetanslutning.',
     'permission-denied': 'Du har inte behörighet till detta.',
     'db-timeout': 'Databasen svarar inte. Kontrollera att Firestore är skapad.',
-    'unavailable': 'Ingen internetanslutning.'
+    'unavailable': 'Ingen internetanslutning.',
+    'auth/unauthorized-domain': 'Adressen är inte godkänd i Firebase än.',
+    'auth/missing-email': 'Skriv din e-post.'
   };
-  return map[code] || 'Något gick fel. Försök igen.';
+  if (/referer|referrer|api-key|api_key/i.test(code)) return 'Firebase-nyckeln godkänner inte den här adressen (' + code + ').';
+  return map[code] || `Något gick fel. Försök igen. (${String(code).slice(0, 60)})`;
 }

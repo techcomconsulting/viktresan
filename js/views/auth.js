@@ -125,8 +125,9 @@ export async function forgotView(el) {
     await busy(form.querySelector('[type=submit]'), async () => {
       try {
         await sendPasswordResetEmail(auth, form.em.value.trim());
-        toast('Kolla din e-post.');
-        location.hash = '#/login';
+        form.innerHTML = `<p style="font-size:16px;line-height:1.45;margin:0"><b>Mejlet är skickat!</b><br>Kolla din inkorg. Hittar du det inte, titta i <b>skräpposten</b>. Det kan ta några minuter.</p>
+          <p class="small muted" style="margin:0">Avsändare: noreply@viktresan-25170.firebaseapp.com</p>
+          <a class="btn primary block" href="#/login">Till inloggning</a>`;
       } catch (ex) {
         const er = form.querySelector('.error');
         er.textContent = errorText(ex);

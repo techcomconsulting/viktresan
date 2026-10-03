@@ -1,6 +1,6 @@
 // Gör att appen startar snabbt och kan installeras på hemskärmen.
 // Byt versionen när du laddar upp en ny version av appen.
-const VERSION = 'viktresan-v23';
+const VERSION = 'viktresan-v24';
 const FILES = [
   './', './index.html', './css/app.css', './manifest.webmanifest',
   './js/app.js', './js/install.js', './js/invite.js', './js/food.js', './js/scanner.js', './js/views/kost.js', './data/livsmedel.json', './js/config.js', './js/firebase.js', './js/data.js', './js/ui.js',
