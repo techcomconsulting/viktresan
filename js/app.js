@@ -16,6 +16,7 @@ import { kostView, addFoodView, scanView, trainingView } from './views/kost.js';
 import { openSheet } from './ui.js';
 import { termsView, privacyView, consentView } from './views/legal.js';
 import { landingView } from './views/landing.js';
+import { adminView } from './views/admin.js';
 
 const root = document.getElementById('app');
 const nav = document.getElementById('nav');
@@ -50,7 +51,8 @@ const routes = [
   [/^\/delning\/([^/]+)$/, sharePermsView, 'share'],
   [/^\/person\/([^/]+)$/, personView, 'share'],
   [/^\/profil$/, profileView, 'me'],
-  [/^\/notiser$/, notificationsView, 'home']
+  [/^\/notiser$/, notificationsView, 'home'],
+  [/^\/admin$/, adminView, null]
 ];
 
 export const ctx = {
