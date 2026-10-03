@@ -215,3 +215,7 @@ img.photo { padding: 0; }
 .comment:last-child { border-bottom: 0; }
 .timeline button[data-step="0"] { opacity: 1; }
 .timeline button[data-step="0"] .dot { background: var(--accent-soft); border-color: var(--accent); }
+
+details summary::-webkit-details-marker { display: none; }
+details summary span { transition: transform .2s; }
+details[open] summary span { transform: rotate(45deg); }

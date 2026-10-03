@@ -15,17 +15,19 @@ import { notificationsView } from './views/notifications.js';
 import { kostView, addFoodView, scanView, trainingView } from './views/kost.js';
 import { openSheet } from './ui.js';
 import { termsView, privacyView, consentView } from './views/legal.js';
+import { landingView } from './views/landing.js';
 
 const root = document.getElementById('app');
 const nav = document.getElementById('nav');
 
 export const state = { user: null, profile: null, unread: 0, lastResult: null, unsub: null };
 
-const PUBLIC = ['/login', '/registrera', '/glomt'];
+const PUBLIC = ['/valkommen', '/login', '/registrera', '/glomt'];
 // Sidor som alla kan läsa, inloggad eller inte.
 const OPEN = ['/villkor', '/integritet'];
 
 const routes = [
+  [/^\/valkommen$/, landingView, null],
   [/^\/login$/, loginView, null],
   [/^\/registrera$/, registerView, null],
   [/^\/glomt$/, forgotView, null],
@@ -105,7 +107,7 @@ let routing = 0;
 async function route() {
   const path = (location.hash.replace(/^#/, '') || '/').split('?')[0];
   const open = OPEN.includes(path);
-  if (!state.user && !PUBLIC.includes(path) && !open) { location.hash = '#/login'; return; }
+  if (!state.user && !PUBLIC.includes(path) && !open) { location.hash = '#/valkommen'; return; }
   if (state.user && PUBLIC.includes(path)) { location.hash = '#/'; return; }
   // Villkor och samtycke måste vara godkända innan man använder appen.
   if (state.user && state.profile && state.profile.termsVersion !== TERMS_VERSION && !open && path !== '/godkann') { location.hash = '#/godkann'; return; }

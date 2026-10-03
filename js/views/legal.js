@@ -12,8 +12,8 @@ const ul = (items) => `<ul style="margin:0;padding-left:20px;display:flex;flex-d
 const p = (t) => `<p style="margin:0;font-size:15px;line-height:1.45">${t}</p>`;
 
 function back(ctx) {
-  const to = ctx.state.user ? (ctx.state.profile?.termsVersion === TERMS_VERSION ? '#/profil' : '#/godkann') : '#/registrera';
-  return `<a class="back" href="${to}">‹ Tillbaka</a>`;
+  const to = ctx.state.user ? (ctx.state.profile?.termsVersion === TERMS_VERSION ? '#/profil' : '#/godkann') : '#/valkommen';
+  return `<a class="back" href="${to}" onclick="if(history.length>1){history.back();return false}">‹ Tillbaka</a>`;
 }
 
 export async function termsView(el, ctx) {

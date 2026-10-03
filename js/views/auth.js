@@ -15,6 +15,7 @@ const brand = `<div class="stack" style="align-items:flex-start;margin:12px 0 8p
 
 export async function loginView(el) {
   el.innerHTML = `<div class="screen no-nav">
+    <a class="back" href="#/valkommen">‹ Om Viktresan</a>
     ${brand}
     <form class="card stack-lg" novalidate>
       <div class="field"><label for="em">E-post</label><input class="input" id="em" type="email" autocomplete="email" required></div>
@@ -45,7 +46,7 @@ export async function loginView(el) {
 export async function registerView(el, ctx) {
   const inviter = readInviter();
   el.innerHTML = `<div class="screen no-nav">
-    <a class="back" href="#/login">‹ Logga in</a>
+    <a class="back" href="#/valkommen">‹ Tillbaka</a>
     <h1>Skapa konto</h1>
     ${inviter ? `<div class="banner pink row" style="font-size:15px"><span style="font-size:22px">💜</span><span><b>@${esc(inviter)}</b> har bjudit in dig. Välkommen!</span></div>` : ''}
     <form class="card stack-lg" novalidate>
