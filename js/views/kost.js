@@ -2,7 +2,7 @@
 import {
   MEALS, mealName, mealNow, loadDay, dayTotals, logFood, updateLogged, removeLogged, loadRecent, loadWater, setWater,
   loadFavs, isFav, setFav, loadSavedMeals, saveMeal, deleteSavedMeal, logSavedMeal, savedMealKcal,
-  searchSlv, searchShared, searchOff, findBarcode, addSharedFood, nutrition, loadSlv, isLiquid, isHotDrink, pieceGrams, rememberPiece,
+  searchSlv, searchShared, searchOff, findBarcode, addSharedFood, nutrition, loadSlv, isLiquid, isHotDrink, pieceGrams, rememberPiece, rememberLiquid,
   ACTIVITIES, activityKcal, loadWorkouts, addWorkout, removeWorkout
 } from '../food.js';
 import { saveProfile, loadEntries, lastValues } from '../data.js';
@@ -307,30 +307,33 @@ export async function kostView(el, ctx) {
 export async function openAmountSheet(ctx, food, opts = {}) {
   const { state } = ctx;
   const logged = opts.logged || null;
-  const liquid = isLiquid(food);
-  const base = liquid ? 'cl' : 'g';
+  let liquid = isLiquid(food);
+  let base, units, pieceG, unit, amount;
   // [nyckel, knapptext, gram per enhet, ord i en, ord i flera]
-  const units = liquid
-    ? [['cl', 'cl', 10, 'cl', 'cl'], ['dl', 'dl', 100, 'dl', 'dl'],
-      isHotDrink(food) ? ['cup', 'Kopp (15 cl)', 150, 'kopp', 'koppar'] : ['glass', 'Glas (20 cl)', 200, 'glas', 'glas']]
-    : [['g', 'Gram', 1, 'g', 'g']];
-  let pieceG = liquid ? null : pieceGrams(food);
-  if (!liquid) units.push(['st', 'Styck', pieceG || 100, 'st', 'st']);
-  if (food.portionG) units.push(['portion', `Portion (${fmt1(food.portionG)} ${liquid ? 'ml' : 'g'})`, food.portionG, 'portion', 'portioner']);
-  if (food.packG) units.push(['pack', 'Hel förp.', food.packG, 'förp.', 'förp.']);
-  const setPiece = (g) => { pieceG = g; const u = units.find((x) => x[0] === 'st'); if (u) u[2] = g; };
-  let unit = base;
-  let amount = 100;
-  if (logged || opts.grams) {
+  const setup = (startGrams) => {
+    base = liquid ? 'cl' : 'g';
+    units = liquid
+      ? [['cl', 'cl', 10, 'cl', 'cl'], ['dl', 'dl', 100, 'dl', 'dl'],
+        isHotDrink(food) ? ['cup', 'Kopp (15 cl)', 150, 'kopp', 'koppar'] : ['glass', 'Glas (20 cl)', 200, 'glas', 'glas']]
+      : [['g', 'Gram', 1, 'g', 'g']];
+    pieceG = liquid ? null : pieceGrams(food);
+    if (!liquid) units.push(['st', 'Styck', pieceG || 100, 'st', 'st']);
+    if (food.portionG) units.push(['portion', `Portion (${fmt1(food.portionG)} ${liquid ? 'ml' : 'g'})`, food.portionG, 'portion', 'portioner']);
+    if (food.packG) units.push(['pack', 'Hel förp.', food.packG, 'förp.', 'förp.']);
     unit = base;
-    amount = (logged ? logged.grams : opts.grams) / (liquid ? 10 : 1);
-  } else if (liquid) {
-    unit = units[2][0]; amount = 1;
-  } else if (food.portionG) {
-    unit = 'portion'; amount = 1;
-  } else if (pieceG) {
-    unit = 'st'; amount = 1;
-  }
+    amount = 100;
+    if (startGrams) {
+      amount = round1(startGrams / (liquid ? 10 : 1));
+    } else if (liquid) {
+      unit = units[2][0]; amount = 1;
+    } else if (food.portionG) {
+      unit = 'portion'; amount = 1;
+    } else if (pieceG) {
+      unit = 'st'; amount = 1;
+    }
+  };
+  setup(logged ? logged.grams : opts.grams);
+  const setPiece = (g) => { pieceG = g; const u = units.find((x) => x[0] === 'st'); if (u) u[2] = g; };
   let meal = logged ? logged.meal : (state.kostMeal || mealNow());
   let fav = await isFav(food).catch(() => false);
 
@@ -354,7 +357,11 @@ export async function openAmountSheet(ctx, food, opts = {}) {
           <svg width="22" height="22" viewBox="0 0 24 24" fill="${fav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></button>
       </div>
       <div class="stack" style="gap:10px">
-        <span style="font-size:14px;font-weight:600">Hur mycket?</span>
+        <div class="between"><span style="font-size:14px;font-weight:600">Hur mycket?</span>
+          <div class="seg" role="group" aria-label="Mäts i" style="width:150px">
+            <button type="button" data-kind="solid" aria-pressed="${!liquid}" style="height:32px;font-size:13px">Mat (g)</button>
+            <button type="button" data-kind="drink" aria-pressed="${liquid}" style="height:32px;font-size:13px">Dryck (cl)</button>
+          </div></div>
         <div class="row" style="gap:10px">
           <button class="btn" data-minus aria-label="Mindre" style="width:52px;padding:0;font-size:26px;background:var(--accent-soft);color:var(--accent-dark)">−</button>
           <label class="grow" style="height:52px;border-radius:16px;border:1px solid var(--field-line);display:flex;align-items:center;justify-content:center;gap:6px">
@@ -391,6 +398,12 @@ export async function openAmountSheet(ctx, food, opts = {}) {
       const per = (units.find((x) => x[0] === unit) || units[0])[2];
       amount = unit === 'g' || unit === 'cl' || unit === 'dl' ? round1(g / per) : unit === 'st' && pieceG ? Math.max(1, Math.round(g / per)) : 1;
       draw();
+    }; });
+    body.querySelectorAll('[data-kind]').forEach((b) => { b.onclick = () => {
+      const want = b.dataset.kind === 'drink';
+      if (want === liquid) return;
+      liquid = want; food.liquid = want; rememberLiquid(food, want);
+      setup(null); draw();
     }; });
     body.querySelector('#ml').onchange = (e) => { meal = e.target.value; };
     const pw = body.querySelector('[data-piece]');

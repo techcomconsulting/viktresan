@@ -40,9 +40,24 @@ function looksLikeDrink(name) {
   if (/drickf/.test(n)) return true;
   return DRINK_FIRST.test(n.split(/[\s,]+/)[0] || '');
 }
+// Kända märken och ord som alltid är drycker, var de än står i namnet.
+const DRINK_ANY = /(red bull|vitamin well|coca[- ]?cola|pepsi|fanta|sprite|7[- ]?up|\bloka\b|ramlösa|bonaqua|monster energy|celsius|nocco|festis|trocadero|zingo|pommac|julmust|påskmust|powerade|gatorade|kombucha|sodavatten|kolsyrat vatten|ikaffe|\biste\b|ice tea|energidryck|\bdryck\b|juice|smoothie|\bläsk\b|\bcola\b)/i;
+
+// Användarens eget val (gram eller cl) för en viss vara.
+const LQ = 'vt-liquid';
+const lqKey = (food) => `${food.src || ''}:${String(food.ref || food.barcode || food.name || '').toLowerCase()}`;
+function lqMap() { try { return JSON.parse(localStorage.getItem(LQ) || '{}'); } catch { return {}; } }
+export function rememberLiquid(food, v) {
+  try { const m = lqMap(); m[lqKey(food)] = !!v; localStorage.setItem(LQ, JSON.stringify(m)); } catch { /* ok */ }
+}
+
 export function isLiquid(food) {
-  if (food.liquid != null) return !!food.liquid;
-  return looksLikeDrink(food.name);
+  const own = lqMap()[lqKey(food)];
+  if (own != null) return own;
+  if (food.liquid === true) return true;
+  const n = String(food.name || '');
+  if (/pulver|konc\.|koncentrat|bönor|hela bönor|malet|kapslar|glass/i.test(n) && !/drickf/i.test(n)) return false;
+  return looksLikeDrink(n) || DRINK_ANY.test(n);
 }
 // Ungefärlig vikt för en bit (ätlig del), t.ex. ett ägg eller en banan.
 const PIECES = [
@@ -280,7 +295,16 @@ export async function addSharedFood(data) {
 // ---------- Open Food Facts (streckkoder) ----------
 
 const OFF = 'https://world.openfoodfacts.org';
-const OFF_FIELDS = 'code,product_name,product_name_sv,brands,nutriments,serving_quantity,product_quantity,product_quantity_unit,quantity';
+const OFF_FIELDS = 'code,product_name,product_name_sv,brands,nutriments,serving_quantity,product_quantity,product_quantity_unit,quantity,categories_tags';
+
+function offLiquid(p, name) {
+  const tags = (p.categories_tags || []).join(' ');
+  if (/dehydrated|powder|pulver|concentrate|coffee-beans|ground-coffee|instant|tea-bags|capsules/.test(tags)) return null;
+  if (/(^|\s)en:(beverages|waters|sodas|juices|carbonated-drinks|plant-based-milk-alternatives)(\s|$)/.test(tags)) return true;
+  if (/^(ml|cl|dl|l)$/i.test(p.product_quantity_unit || '')) return true;
+  if (/\d\s*(ml|cl|dl|l)\b/i.test(p.quantity || '')) return true;
+  return null;
+}
 
 function fromOff(p) {
   if (!p) return null;
@@ -294,7 +318,7 @@ function fromOff(p) {
     src: 'off', ref: p.code, barcode: p.code, name, brand: (p.brands || '').split(',')[0].trim(),
     per100: { kcal: Math.round(Number(kcal)), p: r1(num(n.proteins_100g) || 0), c: r1(num(n.carbohydrates_100g) || 0), f: r1(num(n.fat_100g) || 0) },
     portionG: num(p.serving_quantity), packG: num(p.product_quantity),
-    liquid: /ml/i.test(p.product_quantity_unit || '') || /\d\s*(ml|cl|dl|l)\b/i.test(p.quantity || '') || (looksLikeDrink(name) ? true : null)
+    liquid: offLiquid(p, name)
   };
 }
 
