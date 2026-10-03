@@ -507,6 +507,40 @@ export async function markRead(items) {
   await b.commit();
 }
 
+// ---------- Villkor, ladda ner och radera ----------
+
+// Allt som sparas under en användare.
+const USER_COLS = ['weights', 'measures', 'summary', 'photos', 'treatments', 'goals', 'public', 'groups',
+  'foodlog', 'water', 'workouts', 'foodfav', 'savedmeals'];
+
+// Ändra siffran när villkoren ändras. Då får alla godkänna igen.
+export const TERMS_VERSION = 1;
+
+export async function acceptTerms(uid) {
+  await setDoc(userDoc(uid), { termsVersion: TERMS_VERSION, termsAcceptedAt: serverTimestamp(), healthConsent: true }, { merge: true });
+  invalidate();
+}
+
+function plain(v) {
+  if (v instanceof Timestamp) return v.toDate().toISOString();
+  if (Array.isArray(v)) return v.map(plain);
+  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, plain(x)]));
+  return v;
+}
+
+// Allt om dig i en fil (GDPR: rätt att få ut sina uppgifter).
+export async function exportMyData(uid) {
+  const out = { app: 'Viktresan', exported: new Date().toISOString(), profile: plain(await getProfile(uid)) };
+  for (const name of USER_COLS) {
+    out[name] = (await getDocs(sub(uid, name))).docs.map((d) => ({ id: d.id, ...plain(d.data()) }));
+  }
+  const posts = await getDocs(query(postsCol(), where('owner', '==', uid)));
+  out.posts = posts.docs.map((d) => ({ id: d.id, ...plain(d.data()) }));
+  const shares = await loadShares(uid);
+  out.shares = plain([...shares.out, ...shares.in]);
+  return out;
+}
+
 // ---------- Radera allt ----------
 
 async function deleteAll(refs) {
@@ -523,7 +557,7 @@ export async function deleteEverything(password) {
   await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, password));
   const profile = await getProfile(uid);
   const refs = [];
-  for (const name of ['weights', 'measures', 'summary', 'photos', 'treatments', 'goals', 'public', 'groups']) {
+  for (const name of USER_COLS) {
     (await getDocs(sub(uid, name))).forEach((d) => refs.push(d.ref));
   }
   const posts = await getDocs(query(postsCol(), where('owner', '==', uid)));

@@ -1,8 +1,9 @@
 // Profil, mål och inställningar.
 import { auth, signOut } from '../firebase.js';
 import {
-  saveProfile, refreshSummaries, loadGoals, addGoal, setGoalDone, deleteGoal, loadEntries, deleteEverything
+  saveProfile, refreshSummaries, loadGoals, addGoal, setGoalDone, deleteGoal, loadEntries
 } from '../data.js';
+import { openWipeSheet, downloadMyData } from './legal.js';
 import {
   esc, fmt1, icon, avatar, openSheet, confirmSheet, toast, busy, errorText, parseNum, dShort, dFull, resizeImage, round1
 } from '../ui.js';
@@ -72,6 +73,14 @@ export async function profileView(el, ctx) {
           <a class="list-row" href="#/bilder"><span style="color:var(--accent)">${icon('camera')}</span><span class="grow title" style="font-weight:600">Bilder</span>${icon('right', 18, 2)}</a>
           <a class="list-row" href="#/behandling"><span style="color:var(--accent)">${icon('pill')}</span><span class="grow title" style="font-weight:600">Behandling</span>${icon('right', 18, 2)}</a>
           <a class="list-row" href="#/notiser"><span style="color:var(--accent)">${icon('bell')}</span><span class="grow title" style="font-weight:600">Notiser</span><span class="chip warn js-unread hidden"></span>${icon('right', 18, 2)}</a>
+        </div>
+      </section>
+
+      <section class="stack"><h2>Integritet</h2>
+        <div class="card flush">
+          <a class="list-row" href="#/integritet"><span style="color:var(--accent)">${icon('lock')}</span><span class="grow title" style="font-weight:600">Integritet och GDPR</span>${icon('right', 18, 2)}</a>
+          <a class="list-row" href="#/villkor"><span style="color:var(--accent)">${icon('flag')}</span><span class="grow title" style="font-weight:600">Användarvillkor</span>${icon('right', 18, 2)}</a>
+          <button class="list-row" data-export><span style="color:var(--accent)">${icon('copy')}</span><span class="grow stack" style="gap:2px"><span class="title" style="font-weight:600">Ladda ner mina uppgifter</span><span class="sub">Allt om dig i en fil</span></span>${icon('right', 18, 2)}</button>
         </div>
       </section>
 
@@ -155,25 +164,8 @@ export async function profileView(el, ctx) {
       location.hash = '#/login';
     });
 
-    el.querySelector('[data-wipe]').addEventListener('click', () => {
-      const s = openSheet(`
-        <h2>Radera alla mina uppgifter?</h2>
-        <p class="muted">Allt tas bort: mätningar, bilder, inlägg, behandling, mål, delningar och ditt konto. Det går inte att ångra.</p>
-        <div class="field"><label for="pw">Skriv ditt lösenord för att bekräfta</label><input class="input" id="pw" type="password" autocomplete="current-password"></div>
-        <div class="btn-row"><button class="btn" data-close>Avbryt</button><button class="btn danger-outline" data-go>Radera allt</button></div>`, 'Radera');
-      s.el.querySelector('[data-go]').addEventListener('click', async (e) => {
-        const pw = s.el.querySelector('#pw').value;
-        if (!pw) return;
-        await busy(e.currentTarget, async () => {
-          try {
-            await deleteEverything(pw);
-            s.close();
-            toast('Allt är raderat.');
-            location.hash = '#/login';
-          } catch (ex) { toast(errorText(ex)); }
-        });
-      });
-    });
+    el.querySelector('[data-wipe]').addEventListener('click', openWipeSheet);
+    el.querySelector('[data-export]').addEventListener('click', (e) => downloadMyData(ctx, e.currentTarget));
   };
 
   const editInfo = () => {

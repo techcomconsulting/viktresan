@@ -2,7 +2,8 @@
 import {
   auth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, deleteUser
 } from '../firebase.js';
-import { claimIdentity, saveProfile } from '../data.js';
+import { claimIdentity, saveProfile, acceptTerms } from '../data.js';
+import { consentBoxes, consentChecked, COMPANY } from './legal.js';
 import { esc, errorText, parseNum, isoDay, toast, busy } from '../ui.js';
 
 const brand = `<div class="stack" style="align-items:flex-start;margin:12px 0 8px">
@@ -22,6 +23,7 @@ export async function loginView(el) {
       <a class="btn ghost" href="#/glomt">Glömt lösenord?</a>
     </form>
     <a class="btn outline block" href="#/registrera">Skapa nytt konto</a>
+    <p class="small muted" style="text-align:center"><a href="#/villkor">Villkor</a> · <a href="#/integritet">Integritet</a></p>
   </div>`;
   const form = el.querySelector('form');
   const err = el.querySelector('.error');
@@ -50,10 +52,11 @@ export async function registerView(el, ctx) {
       <div class="field"><label for="em">E-post</label><input class="input" id="em" type="email" autocomplete="email" required></div>
       <div class="field"><label for="pw">Lösenord</label><input class="input" id="pw" type="password" autocomplete="new-password" required>
         <span class="hint">Minst 6 tecken.</span></div>
+      ${consentBoxes()}
       <p class="error hidden" role="alert"></p>
       <button class="btn primary block" type="submit">Skapa konto</button>
     </form>
-    <p class="small muted">Allt du sparar är privat. Ingen ser något förrän du själv väljer att dela.</p>
+    <p class="small muted">Allt du sparar är privat. Ingen ser något förrän du själv väljer att dela. Appen görs av ${COMPANY}.</p>
   </div>`;
   const form = el.querySelector('form');
   const err = el.querySelector('.error');
@@ -65,6 +68,7 @@ export async function registerView(el, ctx) {
     const username = form.un.value.trim().toLowerCase().replace(/^@/, '');
     if (!firstName) return show('Skriv ditt förnamn.');
     if (!/^[a-z0-9_]{3,20}$/.test(username)) return show('Användarnamnet ska ha 3–20 tecken: a–z, 0–9 eller _.');
+    if (!consentChecked(form)) return show('Kryssa i båda rutorna för att skapa konto.');
     await busy(form.querySelector('[type=submit]'), async () => {
       const timeout = (ms) => new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error('timeout'), { code: 'db-timeout' })), ms));
       try {
@@ -79,6 +83,7 @@ export async function registerView(el, ctx) {
           ctx.state.user = null;
           return show(ex.code === 'taken' ? 'Användarnamnet är upptaget.' : errorText(ex));
         }
+        await acceptTerms(cred.user.uid).catch(() => {});
         ctx.state.registering = false;
         ctx.state.user = cred.user;
         await ctx.startSession(cred.user);

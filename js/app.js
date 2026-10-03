@@ -1,6 +1,6 @@
 // Startpunkten: håller koll på inloggning, sidor och menyn.
 import { isConfigured, auth, onAuthStateChanged } from './firebase.js';
-import { getProfile, watchUnread, prefetch, ensurePercent } from './data.js';
+import { getProfile, watchUnread, prefetch, ensurePercent, TERMS_VERSION } from './data.js';
 import { icon, esc, $$ } from './ui.js';
 import './install.js';
 import { loginView, registerView, forgotView, onboardingView } from './views/auth.js';
@@ -14,6 +14,7 @@ import { profileView } from './views/profile.js';
 import { notificationsView } from './views/notifications.js';
 import { kostView, addFoodView, scanView, trainingView } from './views/kost.js';
 import { openSheet } from './ui.js';
+import { termsView, privacyView, consentView } from './views/legal.js';
 
 const root = document.getElementById('app');
 const nav = document.getElementById('nav');
@@ -21,12 +22,17 @@ const nav = document.getElementById('nav');
 export const state = { user: null, profile: null, unread: 0, lastResult: null, unsub: null };
 
 const PUBLIC = ['/login', '/registrera', '/glomt'];
+// Sidor som alla kan läsa, inloggad eller inte.
+const OPEN = ['/villkor', '/integritet'];
 
 const routes = [
   [/^\/login$/, loginView, null],
   [/^\/registrera$/, registerView, null],
   [/^\/glomt$/, forgotView, null],
   [/^\/start$/, onboardingView, null],
+  [/^\/villkor$/, termsView, null],
+  [/^\/integritet$/, privacyView, null],
+  [/^\/godkann$/, consentView, null],
   [/^\/$/, overviewView, 'home'],
   [/^\/matning$/, measureView, null],
   [/^\/matning\/klar$/, resultView, null],
@@ -98,9 +104,13 @@ export function updateBadges() {
 let routing = 0;
 async function route() {
   const path = (location.hash.replace(/^#/, '') || '/').split('?')[0];
-  if (!state.user && !PUBLIC.includes(path)) { location.hash = '#/login'; return; }
+  const open = OPEN.includes(path);
+  if (!state.user && !PUBLIC.includes(path) && !open) { location.hash = '#/login'; return; }
   if (state.user && PUBLIC.includes(path)) { location.hash = '#/'; return; }
-  if (state.user && (!state.profile || !state.profile.onboarded) && path !== '/start') { location.hash = '#/start'; return; }
+  // Villkor och samtycke måste vara godkända innan man använder appen.
+  if (state.user && state.profile && state.profile.termsVersion !== TERMS_VERSION && !open && path !== '/godkann') { location.hash = '#/godkann'; return; }
+  if (state.user && state.profile && state.profile.termsVersion === TERMS_VERSION && path === '/godkann') { location.hash = '#/'; return; }
+  if (state.user && (!state.profile || !state.profile.onboarded) && path !== '/start' && path !== '/godkann' && !open) { location.hash = '#/start'; return; }
 
   const found = routes.find(([re]) => re.test(path));
   if (!found) { location.hash = '#/'; return; }
