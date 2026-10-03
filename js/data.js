@@ -2,7 +2,7 @@
 import {
   db, auth, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, getDocs, query, where,
   orderBy, limit, writeBatch, serverTimestamp, Timestamp, runTransaction, onSnapshot,
-  deleteUser, reauthenticateWithCredential, EmailAuthProvider, getDocsFromServer
+  deleteUser, reauthenticateWithCredential, EmailAuthProvider, getDocsFromServer, increment
 } from './firebase.js';
 
 // Minne för den här sessionen: sidor som redan har visats öppnas direkt.
@@ -541,6 +541,46 @@ export async function exportMyData(uid) {
   return out;
 }
 
+// ---------- Antal användare (bara siffran, bara för admin) ----------
+
+const statsDoc = () => doc(db, 'stats', 'users');
+const memberDoc = (uid) => doc(db, 'stats', 'users', 'members', uid);
+
+// Räknar med kontot en gång. Ingen kan se vilka som räknas, bara hur många.
+export async function ensureCounted(uid, profile) {
+  if (!profile || profile.counted) return;
+  try {
+    const m = await getDoc(memberDoc(uid));
+    if (!m.exists()) {
+      const b = writeBatch(db);
+      b.set(memberDoc(uid), { at: serverTimestamp() });
+      b.set(statsDoc(), { count: increment(1) }, { merge: true });
+      await b.commit();
+    }
+    await setDoc(userDoc(uid), { counted: true }, { merge: true });
+    profile.counted = true;
+  } catch { /* försöker igen nästa gång */ }
+}
+
+async function uncount(uid) {
+  try {
+    const m = await getDoc(memberDoc(uid));
+    if (!m.exists()) return;
+    const b = writeBatch(db);
+    b.delete(memberDoc(uid));
+    b.set(statsDoc(), { count: increment(-1) }, { merge: true });
+    await b.commit();
+  } catch { /* inte viktigt */ }
+}
+
+export async function isAdmin(uid) {
+  try { return (await getDoc(doc(db, 'admins', uid))).exists(); } catch { return false; }
+}
+export async function userCount() {
+  const s = await getDoc(statsDoc());
+  return s.exists() ? s.data().count || 0 : 0;
+}
+
 // ---------- Radera allt ----------
 
 async function deleteAll(refs) {
@@ -570,6 +610,7 @@ export async function deleteEverything(password) {
   const shares = await loadShares(uid);
   [...shares.out, ...shares.in].forEach((s) => refs.push(doc(db, 'shares', s.id)));
   await deleteAll(refs);
+  await uncount(uid);
   const last = [];
   if (profile?.username) last.push(doc(db, 'usernames', profile.username));
   last.push(doc(db, 'emails', user.email.toLowerCase()));

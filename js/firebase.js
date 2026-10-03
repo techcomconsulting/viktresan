@@ -9,7 +9,7 @@ import {
   initializeFirestore, memoryLocalCache,
   doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, getDocs, query, where,
   orderBy, limit, writeBatch, serverTimestamp, Timestamp, runTransaction, onSnapshot,
-  getDocsFromServer
+  getDocsFromServer, increment
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 export const isConfigured = !String(firebaseConfig.apiKey || '').startsWith('KLISTRA_IN');
@@ -34,5 +34,5 @@ export {
   sendPasswordResetEmail, deleteUser, reauthenticateWithCredential, EmailAuthProvider,
   doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, getDocs, query, where,
   orderBy, limit, writeBatch, serverTimestamp, Timestamp, runTransaction, onSnapshot,
-  getDocsFromServer
+  getDocsFromServer, increment
 };

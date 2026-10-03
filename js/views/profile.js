@@ -1,7 +1,7 @@
 // Profil, mål och inställningar.
 import { auth, signOut } from '../firebase.js';
 import {
-  saveProfile, refreshSummaries, loadGoals, addGoal, setGoalDone, deleteGoal, loadEntries
+  saveProfile, refreshSummaries, loadGoals, addGoal, setGoalDone, deleteGoal, loadEntries, isAdmin, userCount
 } from '../data.js';
 import { openWipeSheet, downloadMyData } from './legal.js';
 import { openInviteFriend } from '../invite.js';
@@ -15,7 +15,8 @@ import { openGoalsSheet } from './kost.js';
 export async function profileView(el, ctx) {
   const { state } = ctx;
   const uid = state.user.uid;
-  let [goals, entries] = await Promise.all([loadGoals(uid), loadEntries(uid)]);
+  let [goals, entries, admin] = await Promise.all([loadGoals(uid), loadEntries(uid), isAdmin(uid)]);
+  const users = admin ? await userCount().catch(() => null) : null;
 
   const draw = () => {
     const p = state.profile;
@@ -66,6 +67,10 @@ export async function profileView(el, ctx) {
         </div>
       </section>
 
+      ${admin ? `<section class="card row" style="gap:14px;border:1.5px dashed var(--accent)">
+        <span style="width:48px;height:48px;border-radius:14px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0">${icon('users', 26)}</span>
+        <span class="grow stack" style="gap:0"><span class="small muted">Användare i appen</span><b class="num" style="font-size:30px;line-height:1.1">${users == null ? '–' : users}</b><span class="small muted">Bara du ser detta</span></span>
+      </section>` : ''}
       <button class="card row" data-invitefriend style="border:0;cursor:pointer;text-align:left;background:linear-gradient(135deg,#F6EEFA,#FCEFF4);gap:12px">
         <span style="font-size:30px">💜</span>
         <span class="grow stack" style="gap:2px"><b style="font-size:17px">Bjud in en vän</b><span class="small muted">Gå ner i vikt tillsammans</span></span>${icon('right', 18, 2)}</button>

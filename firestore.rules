@@ -132,6 +132,37 @@ service cloud.firestore {
       allow update, delete: if signedIn() && resource.data.createdBy == me();
     }
 
+    // Antal användare. Bara siffran. Bara admin kan läsa den.
+    // Admin = den som har ett dokument i "admins" med sitt användar-id (läggs in för hand i Firebase).
+    function isAdmin() {
+      return signedIn() && exists(/databases/$(database)/documents/admins/$(me()));
+    }
+    function statsPath() { return /databases/$(database)/documents/stats/users; }
+    function memberPath() { return /databases/$(database)/documents/stats/users/members/$(me()); }
+    function oldCount() { return exists(statsPath()) ? get(statsPath()).data.count : 0; }
+
+    match /admins/{uid} {
+      allow get: if signedIn() && me() == uid;
+      allow list, write: if false;
+    }
+    match /stats/users {
+      allow get: if isAdmin();
+      // +1 bara när man lägger till sin egen markering, −1 bara när man tar bort den.
+      allow create, update: if signedIn()
+        && request.resource.data.keys().hasOnly(['count'])
+        && ((request.resource.data.count == oldCount() + 1 && !exists(memberPath()) && existsAfter(memberPath()))
+          || (request.resource.data.count == oldCount() - 1 && exists(memberPath()) && !existsAfter(memberPath())));
+      match /members/{uid} {
+        allow get: if signedIn() && me() == uid;
+        allow list: if false;
+        allow create: if signedIn() && me() == uid
+          && request.resource.data.keys().hasOnly(['at'])
+          && getAfter(statsPath()).data.count == oldCount() + 1;
+        allow delete: if signedIn() && me() == uid
+          && getAfter(statsPath()).data.count == oldCount() - 1;
+      }
+    }
+
     // Delningar mellan två personer. Id = ägare_mottagare.
     match /shares/{id} {
       allow read: if signedIn()
