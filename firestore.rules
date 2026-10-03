@@ -132,18 +132,6 @@ service cloud.firestore {
       allow update, delete: if signedIn() && resource.data.createdBy == me();
     }
 
-    // Apple Hälsa: iPhone-genvägen skickar dagens aktiva energi hit med en hemlig nyckel.
-    // Bara siffror får skrivas. Bara den som äger nyckeln kan läsa.
-    match /healthInbox/{token}/days/{day} {
-      allow write: if token.size() >= 40
-        && day.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
-        && request.resource.data.keys().hasOnly(['kcal', 'updated'])
-        && request.resource.data.kcal is number
-        && request.resource.data.kcal >= 0 && request.resource.data.kcal < 10000;
-      allow read: if signedIn()
-        && get(/databases/$(database)/documents/users/$(me())).data.healthToken == token;
-    }
-
     // Delningar mellan två personer. Id = ägare_mottagare.
     match /shares/{id} {
       allow read: if signedIn()

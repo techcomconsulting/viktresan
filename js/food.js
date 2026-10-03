@@ -355,23 +355,3 @@ export async function removeWorkout(id) {
   await deleteDoc(doc(db, 'users', uid(), 'workouts', id));
 }
 
-// ---------- Apple Hälsa via Genvägar ----------
-// iPhone-genvägen skriver dagens "Aktiv energi" till healthInbox/{nyckel}/days/{datum}.
-// Nyckeln är hemlig och lång, och bara ägaren kan läsa.
-
-export function newHealthToken() {
-  const a = new Uint8Array(24);
-  crypto.getRandomValues(a);
-  return Array.from(a, (b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-export async function loadHealth(token, day) {
-  if (!token) return null;
-  return cached(`health:${token}:${day}`, 30000, async () => {
-    try {
-      const s = await getDoc(doc(db, 'healthInbox', token, 'days', day));
-      return s.exists() ? s.data() : null;
-    } catch { return null; }
-  });
-}
-export const forgetHealth = () => forget('health:');
