@@ -8,10 +8,14 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Viktresan">
-<title>Viktresan</title>
-<meta name="description" content="Följ din viktresa och peppa varandra. Gratis och privat.">
+<title>Viktresan – gratis viktapp för hela familjen</title>
+<meta name="description" content="Gå ner i vikt tillsammans. Följ vikt, mått, kalorier och träning, skanna streckkoder och peppa varandra. Gratis, privat och utan reklam. Fungerar på iPhone, Android och dator.">
+<link rel="canonical" href="https://viktresan.online/">
+<meta name="robots" content="index, follow">
+<meta property="og:site_name" content="Viktresan">
 <meta property="og:title" content="Viktresan – gå ner i vikt tillsammans">
 <meta property="og:description" content="Följ vikt, mått och kost. Du väljer själv vad du delar. Gratis och privat.">
+<meta name="twitter:card" content="summary">
 <meta property="og:image" content="https://viktresan.online/icons/icon-512.png">
 <meta property="og:url" content="https://viktresan.online/">
 <meta property="og:type" content="website">
@@ -23,9 +27,123 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/app.css">
+<script>try{if(localStorage.getItem('vt-auth'))document.documentElement.classList.add('authed')}catch(e){}</script>
+<style>.authed #seo{display:none}html:not(.authed) #app>.boot{display:none}</style>
+<!--JSONLD--><script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Viktresan","url":"https://viktresan.online/","applicationCategory":"HealthApplication","operatingSystem":"iOS, Android, Windows, macOS","inLanguage":"sv","description":"Gratis viktapp för hela familjen. Följ vikt, mått, kalorier och träning. Peppa varandra och välj själv vad du delar.","offers":{"@type":"Offer","price":"0","priceCurrency":"SEK"},"publisher":{"@type":"Organization","name":"Techcom Consulting AB"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Kostar det något?","acceptedAnswer":{"@type":"Answer","text":"Nej. Viktresan är gratis att använda."}},{"@type":"Question","name":"Vem ser mina uppgifter?","acceptedAnswer":{"@type":"Answer","text":"Bara du. Andra ser bara det du själv väljer att dela. Vi säljer aldrig dina uppgifter och visar ingen reklam."}},{"@type":"Question","name":"Måste jag visa hur mycket jag väger?","acceptedAnswer":{"@type":"Answer","text":"Nej. Du kan välja att bara dela procent, till exempel \"−4 %\". Eller inte dela något alls."}},{"@type":"Question","name":"Fungerar det på Android?","acceptedAnswer":{"@type":"Answer","text":"Ja. Viktresan fungerar på iPhone, Android och dator. Du behöver inte ladda ner något från App Store eller Google Play."}},{"@type":"Question","name":"Hur lägger jag appen på hemskärmen?","acceptedAnswer":{"@type":"Answer","text":"iPhone: öppna i Safari, tryck på dela-knappen och välj Lägg till på hemskärmen.Android: öppna i Chrome, tryck på menyn ⋮ och välj Lägg till på startskärmen."}},{"@type":"Question","name":"Kan jag radera allt?","acceptedAnswer":{"@type":"Answer","text":"Ja. Under Profil kan du ladda ner eller radera alla dina uppgifter. Då försvinner allt direkt."}},{"@type":"Question","name":"Ersätter appen läkare eller dietist?","acceptedAnswer":{"@type":"Answer","text":"Nej. Kalorier och mål är uppskattningar. Prata med vården innan du gör stora förändringar."}}]}</script><!--/JSONLD-->
 </head>
 <body>
-<main id="app"><div class="boot">Laddar…</div></main>
+<main id="app"><div class="boot">Laddar…</div><!--LANDING--><div id="seo"><div class="screen no-nav" style="gap:28px;max-width:560px">
+    <section class="stack-lg" style="gap:18px">
+      <div class="row" style="gap:10px"><img src="icons/icon-192.png" alt="" width="40" height="40" style="border-radius:12px"><b style="font-size:20px">Viktresan</b>
+        <a href="#/login" class="btn ghost sm" style="margin-left:auto">Logga in</a></div>
+      <h1 style="font-size:36px;line-height:1.08">Gå ner i vikt.<br><span style="color:var(--accent)">Tillsammans.</span></h1>
+      <p style="font-size:18px;line-height:1.45;color:var(--muted)">Följ din vikt, dina mått och din kost. Peppa varandra i familjen. Du väljer själv vad du delar.</p>
+      <div class="stack" style="gap:10px">
+    <a class="btn primary block" href="#/registrera" style="height:56px;font-size:18px">Skapa konto gratis</a>
+    <a class="btn outline block" href="#/login">Jag har redan ett konto</a></div>
+      <div class="row" style="gap:14px;flex-wrap:wrap;font-size:14px;color:var(--muted)">
+        <span class="row" style="gap:4px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Gratis</span>
+        <span class="row" style="gap:4px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Privat</span>
+        <span class="row" style="gap:4px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Ingen reklam</span>
+      </div>
+    </section>
+
+    <div style="padding:6px 0 10px"><div aria-hidden="true" style="width:100%;max-width:260px;margin:0 auto;border-radius:34px;background:#1B1D1C;padding:8px;box-shadow:0 18px 40px rgba(62,42,92,.25);transform:rotate(-2deg)">
+  <div style="border-radius:27px;background:var(--bg);padding:16px 12px 14px;display:flex;flex-direction:column;gap:10px;min-height:300px">
+  <div class="between"><b style="font-size:15px">Hej Anna!</b><span class="chip good" style="font-size:11px">Vecka 6</span></div>
+  <div style="background:#fff;border-radius:16px;box-shadow:var(--shadow);padding:12px;"><span class="small muted">Sedan start</span>
+    <div style="font-size:30px;font-weight:700;color:var(--accent-dark);letter-spacing:-.02em">−4,2 %</div><svg viewBox="0 0 200 60" width="100%" height="60" aria-hidden="true">
+  <path d="M0 12 C30 14 40 22 60 24 S100 30 120 38 S170 46 200 50 L200 60 L0 60 Z" fill="#F3EEFA"/>
+  <path d="M0 12 C30 14 40 22 60 24 S100 30 120 38 S170 46 200 50" fill="none" stroke="#7B5EA7" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="200" cy="50" r="4" fill="#7B5EA7"/></svg></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+    <div style="background:#fff;border-radius:16px;box-shadow:var(--shadow);padding:12px;"><span class="small muted" style="font-size:11px">Midja</span><div style="font-weight:700">−5 cm</div></div>
+    <div style="background:#fff;border-radius:16px;box-shadow:var(--shadow);padding:12px;"><span class="small muted" style="font-size:11px">Kvar idag</span><div style="font-weight:700;color:#2E7A5C">640 kcal</div></div>
+  </div>
+  <div style="background:#fff;border-radius:16px;box-shadow:var(--shadow);padding:12px;"><div class="row" style="gap:8px"><span style="width:28px;height:28px;border-radius:14px;background:var(--pink-soft);color:var(--pink);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">M</span>
+    <span class="small" style="line-height:1.3"><b>Martin</b> peppade dig 💪</span></div></div></div></div></div>
+
+    <section class="stack-lg">
+      <h2 style="font-size:24px">Så fungerar det</h2>
+      
+        <div class="row" style="gap:14px;align-items:flex-start">
+          <span style="width:40px;height:40px;border-radius:20px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;flex-shrink:0">1</span>
+          <div class="stack" style="gap:2px"><b style="font-size:17px">Skapa ett konto</b><span class="muted" style="font-size:15px">Det tar en minut. Ingen app att ladda ner.</span></div></div>
+        <div class="row" style="gap:14px;align-items:flex-start">
+          <span style="width:40px;height:40px;border-radius:20px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;flex-shrink:0">2</span>
+          <div class="stack" style="gap:2px"><b style="font-size:17px">Väg och mät dig</b><span class="muted" style="font-size:15px">Skriv in din vikt och dina mått när du vill.</span></div></div>
+        <div class="row" style="gap:14px;align-items:flex-start">
+          <span style="width:40px;height:40px;border-radius:20px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;flex-shrink:0">3</span>
+          <div class="stack" style="gap:2px"><b style="font-size:17px">Dela om du vill</b><span class="muted" style="font-size:15px">Bjud in familj och vänner. Peppa varandra.</span></div></div>
+    </section>
+
+    <section class="stack-lg">
+      <h2 style="font-size:24px">Det här kan du göra</h2>
+      <div class="card stack" style="gap:12px;background:linear-gradient(180deg,#fff,#FBF9FD)">
+        <div style="background:#fff;border-radius:16px;box-shadow:var(--shadow);padding:12px;"><span class="small muted">Vikt</span><svg viewBox="0 0 200 60" width="100%" height="60" aria-hidden="true">
+  <path d="M0 12 C30 14 40 22 60 24 S100 30 120 38 S170 46 200 50 L200 60 L0 60 Z" fill="#F3EEFA"/>
+  <path d="M0 12 C30 14 40 22 60 24 S100 30 120 38 S170 46 200 50" fill="none" stroke="#7B5EA7" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="200" cy="50" r="4" fill="#7B5EA7"/></svg></div>
+        <div class="stack" style="gap:4px"><b style="font-size:18px">Vikt och mått</b><span class="muted" style="font-size:15px;line-height:1.45">Väg dig och mät midja, höft, arm och lår. Se hur det går i en graf.</span></div></div><div class="card stack" style="gap:12px;background:linear-gradient(180deg,#fff,#FBF9FD)">
+        <div style="background:#fff;border-radius:16px;box-shadow:var(--shadow);padding:12px;"><div class="row" style="gap:12px"><svg viewBox="0 0 80 80" width="74" height="74" aria-hidden="true"><circle cx="40" cy="40" r="32" fill="none" stroke="#F0EDE8" stroke-width="9"/>
+  <circle cx="40" cy="40" r="32" fill="none" stroke="#2E7A5C" stroke-width="9" stroke-linecap="round" stroke-dasharray="201" stroke-dashoffset="70" transform="rotate(-90 40 40)"/>
+  <text x="40" y="44" text-anchor="middle" font-size="15" font-weight="700" fill="#1B1D1C">640</text></svg><div class="stack" style="gap:2px"><b>kcal kvar</b><span class="small muted">💧 1,25 liter vatten</span></div></div></div>
+        <div class="stack" style="gap:4px"><b style="font-size:18px">Kost och vatten</b><span class="muted" style="font-size:15px;line-height:1.45">Räkna kalorier, protein och vatten. Få förslag på ett kalorimål som passar dig.</span></div></div><div class="card stack" style="gap:12px;background:linear-gradient(180deg,#fff,#FBF9FD)">
+        <div style="background:#fff;border-radius:16px;box-shadow:var(--shadow);padding:12px;"><div class="row" style="gap:12px;justify-content:center"><div style="border:2.5px solid var(--accent);border-radius:12px;padding:6px 8px"><svg viewBox="0 0 120 50" width="120" height="50" aria-hidden="true"><rect x="2" y="0" width="4.800000000000001" height="50" fill="#1B1D1C"/><rect x="11.200000000000001" y="0" width="1.6" height="50" fill="#1B1D1C"/><rect x="18.800000000000004" y="0" width="1.6" height="50" fill="#1B1D1C"/><rect x="24.800000000000004" y="0" width="3.2" height="50" fill="#1B1D1C"/><rect x="30.800000000000004" y="0" width="4.800000000000001" height="50" fill="#1B1D1C"/><rect x="38.400000000000006" y="0" width="1.6" height="50" fill="#1B1D1C"/><rect x="44.400000000000006" y="0" width="4.800000000000001" height="50" fill="#1B1D1C"/><rect x="52.00000000000001" y="0" width="3.2" height="50" fill="#1B1D1C"/><rect x="58.00000000000001" y="0" width="4.800000000000001" height="50" fill="#1B1D1C"/><rect x="67.2" y="0" width="1.6" height="50" fill="#1B1D1C"/><rect x="71.60000000000001" y="0" width="3.2" height="50" fill="#1B1D1C"/><rect x="80.80000000000001" y="0" width="1.6" height="50" fill="#1B1D1C"/></svg></div></div></div>
+        <div class="stack" style="gap:4px"><b style="font-size:18px">Skanna streckkoden</b><span class="muted" style="font-size:15px;line-height:1.45">Håll kameran mot förpackningen. Appen hittar maten direkt.</span></div></div><div class="card stack" style="gap:12px;background:linear-gradient(180deg,#fff,#FBF9FD)">
+        <div style="background:#fff;border-radius:16px;box-shadow:var(--shadow);padding:12px;"><div class="row" style="gap:10px"><span style="width:34px;height:34px;border-radius:10px;background:#EAF4EE;color:#1F5A41;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13" cy="4" r="2"/><path d="M10 21l2-6 3 3v3M8 12l3-4 3 2 3-1M11 8l-1 5"/></svg></span><span class="grow"><b>Promenad</b><br><span class="small muted">45 min</span></span><b style="color:#2E7A5C">+223</b></div></div>
+        <div class="stack" style="gap:4px"><b style="font-size:18px">Träning</b><span class="muted" style="font-size:15px;line-height:1.45">Lägg in promenad, gym eller kalorier från klockan. Då får du äta lite mer.</span></div></div><div class="card stack" style="gap:12px;background:linear-gradient(180deg,#fff,#FBF9FD)">
+        <div style="background:#fff;border-radius:16px;box-shadow:var(--shadow);padding:12px;"><div class="small" style="line-height:1.4"><b>Anna</b> · nytt inlägg<br>Ner 1 % den här veckan! 🎉</div><div class="row" style="gap:6px;margin-top:8px;font-size:15px">❤️ 💪 👏 <span class="small muted">3 kommentarer</span></div></div>
+        <div class="stack" style="gap:4px"><b style="font-size:18px">Peppa varandra</b><span class="muted" style="font-size:15px;line-height:1.45">Dela med familj och vänner. Skriv inlägg, kommentera och ge hjärtan.</span></div></div><div class="card stack" style="gap:12px;background:linear-gradient(180deg,#fff,#FBF9FD)">
+        <div style="background:#fff;border-radius:16px;box-shadow:var(--shadow);padding:12px;"><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div style="aspect-ratio:4/3;border-radius:10px;background:linear-gradient(160deg,var(--accent-soft),var(--pink-soft));display:flex;align-items:flex-end;padding:6px"><span class="chip neutral" style="font-size:11px;padding:3px 8px">Före</span></div><div style="aspect-ratio:4/3;border-radius:10px;background:linear-gradient(160deg,var(--accent-soft),var(--pink-soft));display:flex;align-items:flex-end;padding:6px"><span class="chip neutral" style="font-size:11px;padding:3px 8px">Nu</span></div></div></div>
+        <div class="stack" style="gap:4px"><b style="font-size:18px">Bilder och behandling</b><span class="muted" style="font-size:15px;line-height:1.45">Spara före- och efterbilder. Håll koll på mediciner och behandlingar.</span></div></div>
+    </section>
+
+    <section class="card stack-lg" style="background:var(--accent-soft);box-shadow:none">
+      <div class="row" style="gap:10px;color:var(--accent-ink)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><h2 style="font-size:22px;color:var(--accent-ink)">Tryggt och privat</h2></div>
+      
+        <div class="row" style="gap:10px;align-items:flex-start;font-size:16px;line-height:1.45;color:var(--accent-ink)"><span style="flex-shrink:0;margin-top:2px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span>Allt du sparar är <b>privat</b> från början.</span></div>
+        <div class="row" style="gap:10px;align-items:flex-start;font-size:16px;line-height:1.45;color:var(--accent-ink)"><span style="flex-shrink:0;margin-top:2px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span>Du väljer <b>vem</b> som får se <b>vad</b>. Vikt, mått, kost, bilder – var för sig.</span></div>
+        <div class="row" style="gap:10px;align-items:flex-start;font-size:16px;line-height:1.45;color:var(--accent-ink)"><span style="flex-shrink:0;margin-top:2px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span>Du kan dela <b>bara procent</b>, utan att visa kilo.</span></div>
+        <div class="row" style="gap:10px;align-items:flex-start;font-size:16px;line-height:1.45;color:var(--accent-ink)"><span style="flex-shrink:0;margin-top:2px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span>Vi följer <b>GDPR</b>. Du kan ladda ner och radera allt när du vill.</span></div>
+      <a href="#/integritet" style="font-weight:600">Läs mer om integritet</a>
+    </section>
+
+    <section class="stack-lg">
+      <h2 style="font-size:24px">Vanliga frågor</h2>
+      <div class="card flush">
+        <details style="">
+          <summary style="list-style:none;cursor:pointer;padding:16px 18px;font-weight:600;font-size:16px;display:flex;justify-content:space-between;gap:10px;align-items:center">Kostar det något?<span aria-hidden="true" style="color:var(--accent);font-size:22px;line-height:1">+</span></summary>
+          <p style="padding:0 18px 16px;font-size:15px;line-height:1.5;color:var(--muted)">Nej. Viktresan är gratis att använda.</p></details><details style="border-top:1px solid var(--line);">
+          <summary style="list-style:none;cursor:pointer;padding:16px 18px;font-weight:600;font-size:16px;display:flex;justify-content:space-between;gap:10px;align-items:center">Vem ser mina uppgifter?<span aria-hidden="true" style="color:var(--accent);font-size:22px;line-height:1">+</span></summary>
+          <p style="padding:0 18px 16px;font-size:15px;line-height:1.5;color:var(--muted)">Bara du. Andra ser bara det du själv väljer att dela. Vi säljer aldrig dina uppgifter och visar ingen reklam.</p></details><details style="border-top:1px solid var(--line);">
+          <summary style="list-style:none;cursor:pointer;padding:16px 18px;font-weight:600;font-size:16px;display:flex;justify-content:space-between;gap:10px;align-items:center">Måste jag visa hur mycket jag väger?<span aria-hidden="true" style="color:var(--accent);font-size:22px;line-height:1">+</span></summary>
+          <p style="padding:0 18px 16px;font-size:15px;line-height:1.5;color:var(--muted)">Nej. Du kan välja att bara dela <b>procent</b>, till exempel "−4 %". Eller inte dela något alls.</p></details><details style="border-top:1px solid var(--line);">
+          <summary style="list-style:none;cursor:pointer;padding:16px 18px;font-weight:600;font-size:16px;display:flex;justify-content:space-between;gap:10px;align-items:center">Fungerar det på Android?<span aria-hidden="true" style="color:var(--accent);font-size:22px;line-height:1">+</span></summary>
+          <p style="padding:0 18px 16px;font-size:15px;line-height:1.5;color:var(--muted)">Ja. Viktresan fungerar på iPhone, Android och dator. Du behöver inte ladda ner något från App Store eller Google Play.</p></details><details style="border-top:1px solid var(--line);">
+          <summary style="list-style:none;cursor:pointer;padding:16px 18px;font-weight:600;font-size:16px;display:flex;justify-content:space-between;gap:10px;align-items:center">Hur lägger jag appen på hemskärmen?<span aria-hidden="true" style="color:var(--accent);font-size:22px;line-height:1">+</span></summary>
+          <p style="padding:0 18px 16px;font-size:15px;line-height:1.5;color:var(--muted)"><b>iPhone:</b> öppna i Safari, tryck på dela-knappen och välj <b>Lägg till på hemskärmen</b>.<br><b>Android:</b> öppna i Chrome, tryck på menyn ⋮ och välj <b>Lägg till på startskärmen</b>.</p></details><details style="border-top:1px solid var(--line);">
+          <summary style="list-style:none;cursor:pointer;padding:16px 18px;font-weight:600;font-size:16px;display:flex;justify-content:space-between;gap:10px;align-items:center">Kan jag radera allt?<span aria-hidden="true" style="color:var(--accent);font-size:22px;line-height:1">+</span></summary>
+          <p style="padding:0 18px 16px;font-size:15px;line-height:1.5;color:var(--muted)">Ja. Under Profil kan du ladda ner eller radera alla dina uppgifter. Då försvinner allt direkt.</p></details><details style="border-top:1px solid var(--line);">
+          <summary style="list-style:none;cursor:pointer;padding:16px 18px;font-weight:600;font-size:16px;display:flex;justify-content:space-between;gap:10px;align-items:center">Ersätter appen läkare eller dietist?<span aria-hidden="true" style="color:var(--accent);font-size:22px;line-height:1">+</span></summary>
+          <p style="padding:0 18px 16px;font-size:15px;line-height:1.5;color:var(--muted)">Nej. Kalorier och mål är uppskattningar. Prata med vården innan du gör stora förändringar.</p></details>
+      </div>
+    </section>
+
+    <section class="card stack-lg" style="text-align:center;background:linear-gradient(135deg,#F6EEFA,#FCEFF4);box-shadow:none">
+      <h2 style="font-size:24px">Redo att börja?</h2>
+      <p class="muted" style="font-size:16px">Det är gratis och tar en minut.</p>
+      <div class="stack" style="gap:10px">
+    <a class="btn primary block" href="#/registrera" style="">Skapa konto gratis</a>
+    <a class="btn outline block" href="#/login">Jag har redan ett konto</a></div>
+    </section>
+
+    <footer class="stack" style="gap:6px;text-align:center;font-size:13px;color:var(--muted);padding-bottom:12px">
+      <span>Viktresan görs av Techcom Consulting AB</span>
+      <span><a href="#/villkor">Villkor</a> · <a href="#/integritet">Integritet</a> · <a href="mailto:techcomconsultingab@gmail.com">Kontakt</a></span>
+    </footer>
+  </div></div><!--/LANDING--></main>
 <nav id="nav" class="nav hidden" aria-label="Huvudmeny"></nav>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <script type="module" src="js/app.js"></script>

@@ -161,6 +161,9 @@ if (!isConfigured) {
   window.addEventListener('hashchange', route);
   onAuthStateChanged(auth, async (user) => {
     state.user = user;
+    // Kom ihåg att man är inloggad, så att startsidan inte blinkar till nästa gång.
+    try { if (user) localStorage.setItem('vt-auth', '1'); else localStorage.removeItem('vt-auth'); } catch { /* ok */ }
+    document.documentElement.classList.toggle('authed', !!user);
     if (state.unsub) { state.unsub(); state.unsub = null; }
     if (state.registering) return;
     if (user) {

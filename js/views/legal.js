@@ -3,8 +3,8 @@ import { auth, signOut } from '../firebase.js';
 import { acceptTerms, exportMyData, deleteEverything, TERMS_VERSION } from '../data.js';
 import { icon, openSheet, toast, busy, errorText } from '../ui.js';
 
-export const COMPANY = 'Techcom Consulting AB';
-export const CONTACT = 'techcomconsultingab@gmail.com';
+import { COMPANY, CONTACT } from '../brand.js';
+export { COMPANY, CONTACT };
 const UPDATED = '3 oktober 2026';
 
 const sec = (title, body) => `<section class="card stack" style="gap:8px"><h2 style="font-size:18px">${title}</h2>${body}</section>`;

@@ -1,6 +1,6 @@
 // Startsida för den som inte är inloggad: vad är Viktresan?
 import { icon } from '../ui.js';
-import { COMPANY, CONTACT } from './legal.js';
+import { COMPANY, CONTACT } from '../brand.js';
 
 // Små bilder av appen, ritade med kod.
 const phone = (inner, tilt = 0) => `<div aria-hidden="true" style="width:100%;max-width:260px;margin:0 auto;border-radius:34px;background:#1B1D1C;padding:8px;box-shadow:0 18px 40px rgba(62,42,92,.25);transform:rotate(${tilt}deg)">
@@ -46,7 +46,7 @@ const FEATURES = [
     mini(`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${['Före', 'Nu'].map((t) => `<div style="aspect-ratio:4/3;border-radius:10px;background:linear-gradient(160deg,var(--accent-soft),var(--pink-soft));display:flex;align-items:flex-end;padding:6px"><span class="chip neutral" style="font-size:11px;padding:3px 8px">${t}</span></div>`).join('')}</div>`)]
 ];
 
-const FAQ = [
+export const FAQ = [
   ['Kostar det något?', 'Nej. Viktresan är gratis att använda.'],
   ['Vem ser mina uppgifter?', 'Bara du. Andra ser bara det du själv väljer att dela. Vi säljer aldrig dina uppgifter och visar ingen reklam.'],
   ['Måste jag visa hur mycket jag väger?', 'Nej. Du kan välja att bara dela <b>procent</b>, till exempel "−4 %". Eller inte dela något alls.'],
