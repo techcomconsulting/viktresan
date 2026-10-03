@@ -1,7 +1,7 @@
 // Bjud in en vän: en länk som man kan skicka via sms, Messenger, WhatsApp m.m.
 import { icon, openSheet, toast, esc } from './ui.js';
 
-const APP_URL = 'https://techcomconsulting.github.io/viktresan/';
+const APP_URL = 'https://viktresan.online/';
 const KEY = 'vt-invited-by';
 
 export function inviteLink(username) {
