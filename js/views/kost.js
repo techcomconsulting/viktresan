@@ -23,33 +23,135 @@ function goals(p) {
 
 // ---------- Mål ----------
 
-export function openGoalsSheet(ctx, onSaved) {
-  const p = ctx.state.profile;
+// Kostmetoder: andel av kalorierna från protein, kolhydrater och fett (procent).
+export const DIETS = [
+  ['balanced', 'Balanserad', 20, 50, 30, 'Som Livsmedelsverkets råd. Bra start för de flesta.'],
+  ['protein', 'Mer protein', 30, 40, 30, 'Mättar bra och hjälper musklerna när du går ner i vikt.'],
+  ['medel', 'Medelhavskost', 20, 45, 35, 'Mycket grönt, fisk, olivolja och nötter.'],
+  ['lowcarb', 'Lågkolhydrat', 25, 25, 50, 'Mindre bröd, pasta och socker. Mer protein och fett.'],
+  ['lchf', 'LCHF', 20, 10, 70, 'Lite kolhydrater, mycket fett.'],
+  ['keto', 'Keto', 20, 5, 75, 'Mycket lite kolhydrater, så att kroppen går över till att bränna fett.'],
+  ['custom', 'Egen', null, null, null, 'Skriv in dina egna siffror.']
+];
+const ACTIVITY = [
+  ['1.2', 'Mest stillasittande', 'Kontor, lite rörelse'],
+  ['1.375', 'Lätt aktiv', 'Promenerar en del'],
+  ['1.55', 'Aktiv', 'Står och går mycket i jobbet'],
+  ['1.725', 'Mycket aktiv', 'Tungt fysiskt arbete']
+];
+const PACE = [['0', 'Behålla vikten', 0], ['250', 'Lugnt, ca 0,25 kg/vecka', 250], ['500', 'Normalt, ca 0,5 kg/vecka', 500], ['750', 'Snabbare, ca 0,75 kg/vecka', 750]];
+
+// Förslag på kalorier (Mifflin-St Jeor) minus det man vill gå ner.
+export function suggestKcal({ sex, age, heightCm, kg, activity, pace }) {
+  if (!sex || !age || !heightCm || !kg) return null;
+  const bmr = 10 * kg + 6.25 * heightCm - 5 * age + (sex === 'Man' ? 5 : -161);
+  const need = bmr * Number(activity || 1.2);
+  const floor = sex === 'Man' ? 1500 : 1200;
+  return Math.max(floor, Math.round((need - Number(pace || 0)) / 10) * 10);
+}
+export function macroGrams(kcal, dietKey) {
+  const d = DIETS.find((x) => x[0] === dietKey);
+  if (!d || d[2] == null || !kcal) return null;
+  return { p: Math.round(kcal * d[2] / 100 / 4), c: Math.round(kcal * d[3] / 100 / 4), f: Math.round(kcal * d[4] / 100 / 9) };
+}
+
+export async function openGoalsSheet(ctx, onSaved) {
+  const { state } = ctx;
+  const p = state.profile;
   const G = goals(p);
-  const field = (id, label, unit, v, hint = '') => `<div class="field"><label for="${id}">${label} (${unit})</label>
-    <input class="input" id="${id}" inputmode="decimal" value="${v ?? ''}" placeholder="Inget mål">${hint ? `<span class="hint">${hint}</span>` : ''}</div>`;
-  const s = openSheet(`
-    <h2>Mina kostmål</h2>
-    <p class="muted" style="font-size:14px">Du väljer själv. Appen ger inga råd. Lämna tomt om du inte vill ha ett mål.</p>
-    ${field('gk', 'Kalorier per dag', 'kcal', G.kcal)}
-    <div class="grid2">${field('gp', 'Protein', 'g', G.p)}${field('gc', 'Kolhydrater', 'g', G.c)}</div>
-    ${field('gf', 'Fett', 'g', G.f)}
-    ${field('gw', 'Vatten per dag', 'liter', String(G.water / 100).replace('.', ','))}
-    <div class="btn-row"><button class="btn" data-close>Avbryt</button><button class="btn primary" data-save>Spara</button></div>`, 'Kostmål');
-  s.el.querySelector('[data-save]').addEventListener('click', async (e) => {
-    const v = (id) => { const n = parseNum(s.el.querySelector('#' + id).value); return n && n > 0 ? Math.round(n) : null; };
-    const w = parseNum(s.el.querySelector('#gw').value);
-    const data = { kcalGoal: v('gk'), proteinGoal: v('gp'), carbGoal: v('gc'), fatGoal: v('gf'), waterGoalCl: w && w > 0 ? Math.round(w * 100) : 200 };
-    await busy(e.currentTarget, async () => {
-      try {
-        await saveProfile(ctx.state.user.uid, data);
-        Object.assign(ctx.state.profile, data);
-        s.close();
-        toast('Målen är sparade.');
-        onSaved && onSaved();
-      } catch (ex) { toast(errorText(ex)); }
-    });
-  });
+  const kgNow = await latestWeight(state.user.uid);
+  const age = p.birthYear ? new Date().getFullYear() - p.birthYear : null;
+  let sex = p.calcSex || (p.gender === 'Man' || p.gender === 'Kvinna' ? p.gender : '');
+  let activity = p.activityLevel || '1.2';
+  let pace = p.pace ?? '500';
+  let diet = p.dietMethod || 'balanced';
+  let kcalTouched = !!p.kcalGoal;
+
+  const s = openSheet(`<div data-body></div>`, 'Kostmål');
+  const body = s.el.querySelector('[data-body]');
+  const val = (id) => { const n = parseNum(body.querySelector('#' + id)?.value); return n && n > 0 ? Math.round(n) : null; };
+
+  const draw = (keep = {}) => {
+    const sug = suggestKcal({ sex, age, heightCm: p.heightCm, kg: kgNow, activity, pace });
+    const kcal = keep.kcal ?? (kcalTouched ? (G.kcal || sug) : sug);
+    const d = DIETS.find((x) => x[0] === diet);
+    const mg = macroGrams(kcal, diet);
+    const mp = keep.p ?? (mg ? mg.p : G.p), mc = keep.c ?? (mg ? mg.c : G.c), mf = keep.f ?? (mg ? mg.f : G.f);
+    const missing = [!sex && 'kön', !age && 'födelseår', !p.heightCm && 'längd', !kgNow && 'en vägning'].filter(Boolean);
+    const sel = (id, list, cur) => `<select class="input" id="${id}">${list.map(([v, l]) => `<option value="${v}" ${String(v) === String(cur) ? 'selected' : ''}>${l}</option>`).join('')}</select>`;
+
+    body.innerHTML = `<div class="stack-lg">
+      <h2>Mina kostmål</h2>
+
+      <section class="stack" style="gap:12px">
+        <span class="section-title">1. Kalorier per dag</span>
+        <span class="small muted" style="margin-bottom:-6px">Räkna som</span>
+        <div class="seg" role="group" aria-label="Räkna som">
+          ${['Kvinna', 'Man'].map((g) => `<button type="button" data-sex="${g}" aria-pressed="${g === sex}">${g}</button>`).join('')}
+        </div>
+        <div class="field"><label for="ga">Hur aktiv är du i vardagen?</label>${sel('ga', ACTIVITY.map(([v, l, h]) => [v, `${l} – ${h}`]), activity)}
+          <span class="hint">Träning räknas för sig, så välj utan träning.</span></div>
+        <div class="field"><label for="gt">Vilken takt?</label>${sel('gt', PACE, pace)}</div>
+        ${sug ? `<div class="banner soft" style="font-size:14px">Förslag: <b>${num(sug)} kcal</b> per dag<br><span style="font-size:12px">Utifrån ${sex.toLowerCase()}, ${age} år, ${p.heightCm} cm, ${fmt1(kgNow)} kg</span></div>`
+          : `<div class="banner neutral" style="font-size:14px">För ett förslag behövs ${missing.join(', ')}. Fyll i under Profil.</div>`}
+        <div class="field"><label for="gk">Mitt mål (kcal)</label><input class="input" id="gk" inputmode="numeric" value="${kcal ?? ''}" placeholder="Inget mål"></div>
+      </section>
+
+      <section class="stack" style="gap:12px">
+        <span class="section-title">2. Kostmetod</span>
+        <div class="pills" role="group" aria-label="Kostmetod" style="flex-wrap:wrap">
+          ${DIETS.map(([k, l]) => `<button type="button" data-diet="${k}" aria-pressed="${k === diet}" style="flex:0 0 auto">${l}</button>`).join('')}
+        </div>
+        <p class="small muted" style="margin:0">${esc(d[5])}${d[2] != null ? ` <b>${d[2]} % protein · ${d[3]} % kolhydrater · ${d[4]} % fett.</b>` : ''}</p>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
+          <div class="field"><label for="gp">Protein (g)</label><input class="input" id="gp" inputmode="numeric" value="${mp ?? ''}"></div>
+          <div class="field"><label for="gc">Kolh. (g)</label><input class="input" id="gc" inputmode="numeric" value="${mc ?? ''}"></div>
+          <div class="field"><label for="gf">Fett (g)</label><input class="input" id="gf" inputmode="numeric" value="${mf ?? ''}"></div>
+        </div>
+        ${diet === 'keto' || diet === 'lchf' ? '<p class="small" style="color:var(--pink-ink);margin:0">Har du diabetes eller tar medicin? Prata med vården innan du börjar.</p>' : ''}
+      </section>
+
+      <section class="stack" style="gap:12px">
+        <span class="section-title">3. Vatten</span>
+        <div class="field"><label for="gw">Vatten per dag (liter)</label><input class="input" id="gw" inputmode="decimal" value="${String(G.water / 100).replace('.', ',')}"></div>
+      </section>
+
+      <p class="small muted" style="margin:0">Förslagen är ungefärliga. Är du gravid, sjuk eller under 18, fråga vården först.</p>
+      <div class="btn-row"><button class="btn" data-cancel>Avbryt</button><button class="btn primary" data-save>Spara</button></div>
+    </div>`;
+
+    body.querySelectorAll('[data-sex]').forEach((b) => { b.onclick = () => { sex = b.dataset.sex; draw(); }; });
+    body.querySelector('#ga').onchange = (e) => { activity = e.target.value; draw(); };
+    body.querySelector('#gt').onchange = (e) => { pace = e.target.value; draw(); };
+    body.querySelector('#gk').oninput = () => { kcalTouched = true; };
+    body.querySelector('#gk').onchange = () => { kcalTouched = true; draw({ kcal: val('gk') }); };
+    body.querySelectorAll('[data-diet]').forEach((b) => { b.onclick = () => {
+      diet = b.dataset.diet;
+      if (diet === 'custom') draw({ kcal: val('gk'), p: val('gp'), c: val('gc'), f: val('gf') }); else draw({ kcal: val('gk') });
+    }; });
+    ['gp', 'gc', 'gf'].forEach((id) => { body.querySelector('#' + id).oninput = () => {
+      if (diet !== 'custom') { diet = 'custom'; body.querySelectorAll('[data-diet]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.diet === 'custom'))); }
+    }; });
+    body.querySelector('[data-cancel]').onclick = () => s.close();
+    body.querySelector('[data-save]').onclick = async (e) => {
+      const w = parseNum(body.querySelector('#gw').value);
+      const data = {
+        kcalGoal: val('gk'), proteinGoal: val('gp'), carbGoal: val('gc'), fatGoal: val('gf'),
+        waterGoalCl: w && w > 0 ? Math.round(w * 100) : 200, dietMethod: diet, activityLevel: activity, pace: String(pace)
+      };
+      if (sex) data.calcSex = sex;
+      await busy(e.currentTarget, async () => {
+        try {
+          await saveProfile(state.user.uid, data);
+          Object.assign(state.profile, data);
+          s.close();
+          toast('Målen är sparade.');
+          onSaved && onSaved();
+        } catch (ex) { toast(errorText(ex)); }
+      });
+    };
+  };
+  draw();
 }
 
 // ---------- Dagens sida ----------
