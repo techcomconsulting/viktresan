@@ -1,6 +1,6 @@
 // Kost: matdagbok, vatten, favoriter, måltider och matdatabaser.
 import {
-  db, auth, doc, getDoc, setDoc, deleteDoc, addDoc, collection, getDocs, query, where, orderBy, limit,
+  db, auth, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, getDocs, query, where, orderBy, limit,
   writeBatch, serverTimestamp
 } from './firebase.js';
 
@@ -290,6 +290,30 @@ export async function addSharedFood(data) {
   }
   const ref = await addDoc(collection(db, 'foods'), clean);
   return { src: 'fam', ref: ref.id, ...clean };
+}
+
+export async function getSharedFood(id) {
+  try { const s = await getDoc(doc(db, 'foods', String(id))); return s.exists() ? famFood(s) : null; } catch { return null; }
+}
+
+// Ändra en vara som man själv har lagt till. Rättar också det man redan har ätit av den.
+export async function updateSharedFood(id, data) {
+  const clean = {
+    name: data.name, nameLower: data.name.toLowerCase(), brand: data.brand || '',
+    per100: data.per100, portionG: data.portionG || null, packG: data.packG || null, liquid: !!data.liquid,
+    updatedAt: serverTimestamp()
+  };
+  await updateDoc(doc(db, 'foods', String(id)), clean);
+  const food = { src: 'fam', ref: String(id), ...clean };
+  const logs = await getDocs(query(col(uid(), 'foodlog'), where('ref', '==', String(id))));
+  for (const d of logs.docs) {
+    const x = d.data();
+    await setDoc(d.ref, { name: food.name, brand: food.brand, per100: food.per100, liquid: food.liquid, ...nutrition(food, x.grams || 0) }, { merge: true });
+  }
+  const fav = doc(db, 'users', uid(), 'foodfav', favId(food));
+  try { if ((await getDoc(fav)).exists()) await setDoc(fav, { food: { src: 'fam', ref: food.ref, name: food.name, brand: food.brand, per100: food.per100, portionG: food.portionG, packG: food.packG, liquid: food.liquid } }); } catch { /* ok */ }
+  forget('log:', 'recent:', 'fav');
+  return food;
 }
 
 // ---------- Open Food Facts (streckkoder) ----------

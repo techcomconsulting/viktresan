@@ -2,7 +2,7 @@
 import {
   MEALS, mealName, mealNow, loadDay, dayTotals, logFood, updateLogged, removeLogged, loadRecent, loadWater, setWater,
   loadFavs, isFav, setFav, loadSavedMeals, saveMeal, deleteSavedMeal, logSavedMeal, savedMealKcal,
-  searchSlv, searchShared, searchOff, findBarcode, addSharedFood, nutrition, loadSlv, isLiquid, isHotDrink, pieceGrams, rememberPiece, rememberLiquid,
+  searchSlv, searchShared, searchOff, findBarcode, addSharedFood, getSharedFood, updateSharedFood, nutrition, loadSlv, isLiquid, isHotDrink, pieceGrams, rememberPiece, rememberLiquid,
   ACTIVITIES, activityKcal, loadWorkouts, addWorkout, removeWorkout
 } from '../food.js';
 import { saveProfile, loadEntries, lastValues } from '../data.js';
@@ -336,6 +336,12 @@ export async function openAmountSheet(ctx, food, opts = {}) {
   const setPiece = (g) => { pieceG = g; const u = units.find((x) => x[0] === 'st'); if (u) u[2] = g; };
   let meal = logged ? logged.meal : (state.kostMeal || mealNow());
   let fav = await isFav(food).catch(() => false);
+  // Har jag själv lagt till varan? Då får jag ändra den.
+  let mine = null;
+  if (food.src === 'fam' && food.ref) {
+    const full = await getSharedFood(food.ref);
+    if (full && full.createdBy === state.user.uid) mine = full;
+  }
 
   const s = openSheet(`<div data-body></div>`, food.name);
   const body = s.el.querySelector('[data-body]');
@@ -352,6 +358,7 @@ export async function openAmountSheet(ctx, food, opts = {}) {
           <span class="chip neutral" style="align-self:flex-start;font-size:12px;padding:3px 9px">${esc(SRC[food.src] || 'Egen')}</span>
           <h2 style="font-size:22px">${esc(food.name)}</h2>
           ${food.brand ? `<span class="small muted">${esc(food.brand)}</span>` : ''}
+          ${mine ? `<button type="button" class="btn outline sm" data-editfood style="align-self:flex-start;height:34px;margin-top:4px">Ändra varan</button>` : ''}
         </div>
         <button class="icon-btn" data-fav aria-label="Favorit" aria-pressed="${fav}" style="color:${fav ? 'var(--pink)' : 'var(--muted)'}">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="${fav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></button>
@@ -410,6 +417,14 @@ export async function openAmountSheet(ctx, food, opts = {}) {
     if (pw) pw.onchange = () => { const g = parseNum(pw.value); if (g && g > 0 && g < 2000) { setPiece(g); rememberPiece(food, g); } draw(); };
     body.querySelector('[data-fav]').onclick = async () => { fav = !fav; draw(); try { await setFav(food, fav); toast(fav ? 'Sparad som favorit.' : 'Borttagen från favoriter.'); } catch (ex) { toast(errorText(ex)); } };
     body.querySelector('[data-cancel]')?.addEventListener('click', () => s.close());
+    body.querySelector('[data-editfood]')?.addEventListener('click', () => {
+      s.close();
+      openNewFoodSheet(ctx, '', '', mine, (nf) => {
+        const g = logged ? logged.grams : null;
+        openAmountSheet(ctx, nf, { ...opts, logged: logged ? { ...logged, ...nutrition(nf, g) } : null });
+        if (opts.onDone) opts.onDone();
+      });
+    });
     body.querySelector('[data-del]')?.addEventListener('click', async () => {
       try { await removeLogged(logged.id); s.close(); toast('Borttaget.'); opts.onDone && opts.onDone(); } catch (ex) { toast(errorText(ex)); }
     });
@@ -440,26 +455,29 @@ export async function openAmountSheet(ctx, food, opts = {}) {
 
 // ---------- Ny vara ----------
 
-export function openNewFoodSheet(ctx, barcode = '', presetName = '') {
+export function openNewFoodSheet(ctx, barcode = '', presetName = '', edit = null, after = null) {
+  const e0 = edit || {};
+  const val = (x) => (x == null || x === '' ? '' : fmt1(x).replace(',0', ''));
+  const pre = { nk: val(e0.per100?.kcal), np: val(e0.per100?.p), nc: val(e0.per100?.c), nf: val(e0.per100?.f) };
   const f = (id, label, unit) => `<div class="row" style="gap:10px;padding:6px 0"><label for="${id}" class="grow" style="font-size:16px;font-weight:600">${label}</label>
-    <div class="unit-input" style="width:118px;height:46px"><input id="${id}" inputmode="decimal" placeholder="0"><span>${unit}</span></div></div>`;
+    <div class="unit-input" style="width:118px;height:46px"><input id="${id}" inputmode="decimal" placeholder="0" value="${pre[id] || ''}"><span>${unit}</span></div></div>`;
   const s = openSheet(`
-    <h2>${barcode ? 'Varan finns inte än' : 'Lägg till en vara'}</h2>
-    <p class="muted" style="font-size:14px">Skriv av näringstabellen en gång. Sedan hittar alla den nästa gång.</p>
-    <div class="field"><label for="nn">Namn</label><input class="input" id="nn" maxlength="80" value="${esc(presetName)}" placeholder="t.ex. Proteinpudding vanilj"></div>
-    <div class="field"><label for="nb">Märke (valfritt)</label><input class="input" id="nb" maxlength="40"></div>
+    <h2>${edit ? 'Ändra varan' : barcode ? 'Varan finns inte än' : 'Lägg till en vara'}</h2>
+    <p class="muted" style="font-size:14px">${edit ? 'Rätta det som blev fel. Det du redan har ätit av varan räknas om.' : 'Skriv av näringstabellen en gång. Sedan hittar alla den nästa gång.'}</p>
+    <div class="field"><label for="nn">Namn</label><input class="input" id="nn" maxlength="80" value="${esc(edit ? e0.name : presetName)}" placeholder="t.ex. Proteinpudding vanilj"></div>
+    <div class="field"><label for="nb">Märke (valfritt)</label><input class="input" id="nb" maxlength="40" value="${esc(e0.brand || '')}"></div>
     <label class="check"><input type="checkbox" id="nl"> Det är en dryck (mäts i cl)</label>
     <span class="section-title" data-per>Per 100 g</span>
     <div>${f('nk', 'Energi', 'kcal')}${f('np', 'Protein', 'g')}${f('nc', 'Kolhydrater', 'g')}${f('nf', 'Fett', 'g')}</div>
     <div class="grid2">
-      <div class="field"><label for="npo">1 portion (g/ml)</label><input class="input" id="npo" inputmode="decimal" placeholder="valfritt"></div>
-      <div class="field"><label for="npa">Hel förp. (g/ml)</label><input class="input" id="npa" inputmode="decimal" placeholder="valfritt"></div>
+      <div class="field"><label for="npo">1 portion (g/ml)</label><input class="input" id="npo" inputmode="decimal" placeholder="valfritt" value="${val(e0.portionG)}"></div>
+      <div class="field"><label for="npa">Hel förp. (g/ml)</label><input class="input" id="npa" inputmode="decimal" placeholder="valfritt" value="${val(e0.packG)}"></div>
     </div>
     ${barcode ? `<p class="small muted">Streckkod ${esc(barcode)} sparas med varan.</p>` : ''}
     <p class="error hidden" role="alert">Fyll i namn och kalorier.</p>
     <div class="btn-row"><button class="btn" data-close>Avbryt</button><button class="btn primary" data-save>Spara</button></div>`, 'Ny vara');
   const nl = s.el.querySelector('#nl');
-  nl.checked = isLiquid({ name: presetName });
+  nl.checked = edit ? isLiquid(edit) : isLiquid({ name: presetName });
   const syncPer = () => { s.el.querySelector('[data-per]').textContent = nl.checked ? 'Per 100 ml' : 'Per 100 g'; };
   nl.addEventListener('change', syncPer);
   syncPer();
@@ -470,11 +488,20 @@ export function openNewFoodSheet(ctx, barcode = '', presetName = '') {
     if (!name || kcal == null || kcal < 0 || kcal > 1000) { s.el.querySelector('.error').classList.remove('hidden'); return; }
     await busy(e.currentTarget, async () => {
       try {
-        const food = await addSharedFood({
+        const data = {
           name, brand: s.el.querySelector('#nb').value.trim(), barcode,
           per100: { kcal: Math.round(kcal), p: round1(v('np') || 0), c: round1(v('nc') || 0), f: round1(v('nf') || 0) },
           portionG: v('npo') || null, packG: v('npa') || null, liquid: nl.checked
-        });
+        };
+        if (edit) {
+          rememberLiquid(edit, nl.checked);
+          const food = await updateSharedFood(edit.ref, data);
+          s.close();
+          toast('Varan är ändrad.');
+          if (after) after(food);
+          return;
+        }
+        const food = await addSharedFood(data);
         s.close();
         toast('Varan är sparad.');
         openAmountSheet(ctx, food);
