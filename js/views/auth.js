@@ -2,7 +2,8 @@
 import {
   auth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, deleteUser
 } from '../firebase.js';
-import { claimIdentity, saveProfile, acceptTerms } from '../data.js';
+import { claimIdentity, saveProfile, acceptTerms, lookupPerson, notify } from '../data.js';
+import { readInviter, clearInviter } from '../invite.js';
 import { consentBoxes, consentChecked, COMPANY } from './legal.js';
 import { esc, errorText, parseNum, isoDay, toast, busy } from '../ui.js';
 
@@ -42,9 +43,11 @@ export async function loginView(el) {
 }
 
 export async function registerView(el, ctx) {
+  const inviter = readInviter();
   el.innerHTML = `<div class="screen no-nav">
     <a class="back" href="#/login">‹ Logga in</a>
     <h1>Skapa konto</h1>
+    ${inviter ? `<div class="banner pink row" style="font-size:15px"><span style="font-size:22px">💜</span><span><b>@${esc(inviter)}</b> har bjudit in dig. Välkommen!</span></div>` : ''}
     <form class="card stack-lg" novalidate>
       <div class="field"><label for="fn">Förnamn</label><input class="input" id="fn" autocomplete="given-name" required></div>
       <div class="field"><label for="un">Användarnamn</label><input class="input" id="un" autocapitalize="none" autocomplete="username" required>
@@ -84,6 +87,16 @@ export async function registerView(el, ctx) {
           return show(ex.code === 'taken' ? 'Användarnamnet är upptaget.' : errorText(ex));
         }
         await acceptTerms(cred.user.uid).catch(() => {});
+        if (inviter) {
+          try {
+            const who = await lookupPerson(inviter);
+            if (who && who.uid !== cred.user.uid) {
+              await saveProfile(cred.user.uid, { invitedBy: who.uid });
+              await notify(who.uid, `${firstName} har gått med i Viktresan via din inbjudan! Vill ni dela med varandra?`, '#/delning');
+            }
+          } catch { /* inte viktigt */ }
+          clearInviter();
+        }
         ctx.state.registering = false;
         ctx.state.user = cred.user;
         await ctx.startSession(cred.user);

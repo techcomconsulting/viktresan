@@ -11,6 +11,7 @@ import {
 import { buildTimeline, photoImg } from './photos.js';
 import { treatmentList } from './treatment.js';
 import { openPostSheet } from './measure.js';
+import { openInviteFriend } from '../invite.js';
 import { loadDayOf, dayTotals, MEALS } from '../food.js';
 import { isoDay } from '../ui.js';
 
@@ -199,6 +200,7 @@ export async function sharingView(el, ctx) {
         <label for="inv" style="font-size:14px;font-weight:600">Bjud in med e-post eller användarnamn</label>
         <div class="row" style="gap:8px"><input class="input grow" id="inv" autocapitalize="none" autocomplete="off" placeholder="namn@exempel.se"><button class="btn primary" type="submit" style="height:50px">Skicka</button></div>
       </form>
+      <button class="btn outline block" data-invitefriend>${icon('send', 18)}Har din vän inte appen? Bjud in</button>
 
       ${incoming.map((s) => `<section class="card stack-lg">
         <div class="row">${avatar(s.ownerName, null, 40)}<div class="grow stack" style="gap:2px"><b>${esc(s.ownerName)} vill dela med dig</b><span class="small muted">Ny förfrågan</span></div></div>
@@ -249,6 +251,7 @@ export async function sharingView(el, ctx) {
         try { await deleteGroup(me, g.id); await draw(); } catch (ex) { toast(errorText(ex)); }
       });
     };
+    el.querySelector('[data-invitefriend]').addEventListener('click', () => openInviteFriend(ctx));
     el.querySelector('[data-newgroup]').addEventListener('click', () => openGroup(null));
     el.querySelectorAll('[data-group]').forEach((b) => b.addEventListener('click', () => openGroup(groups.find((g) => g.id === b.dataset.group))));
 
@@ -259,7 +262,10 @@ export async function sharingView(el, ctx) {
       await busy(e.target.querySelector('[type=submit]'), async () => {
         try {
           const person = await lookupPerson(q);
-          if (!person) return toast('Hittade ingen med det namnet eller den e-posten.');
+          if (!person) {
+            if (await confirmSheet({ title: 'Hittade ingen', text: 'Din vän kanske inte har appen än. Vill du skicka en inbjudan?', ok: 'Bjud in' })) openInviteFriend(ctx);
+            return;
+          }
           if (person.uid === me) return toast('Det där är du själv.');
           if (sh.out.some((s) => s.viewer === person.uid)) return toast(`Du delar redan med ${person.firstName}.`);
           openInviteSheet(person);

@@ -666,7 +666,11 @@ const NEWS = [
   { id: 'vt-news-traning', title: 'Nu kan du registrera träning!', go: '/kost/traning', rows: [
     ['run', 'Välj <b>aktivitet och tid</b>, t.ex. promenad 30 min'], ['flag', 'Eller skriv in <b>kalorier från klockan</b>'],
     ['watch', 'Fungerar med <b>Fitbit, Samsung, Garmin</b> och andra klockor'], ['food', 'Tränar du får du <b>äta mer</b> samma dag']
-  ], note: 'Du hittar det under Kost → Träning.' }
+  ], note: 'Du hittar det under Kost → Träning.' },
+  { id: 'vt-news-bjud', title: 'Bjud in en vän!', go: '/profil', rows: [
+    ['send', 'Skicka en <b>länk</b> via sms eller Messenger'], ['users', 'Det är lättare att gå ner i vikt <b>tillsammans</b>'],
+    ['bell', 'Du får en <b>notis</b> när din vän har gått med'], ['lock', 'Ni väljer själva vad ni <b>delar</b>']
+  ], note: 'Du hittar det under Profil.' }
 ];
 
 export function maybeShowNews(ctx) {
