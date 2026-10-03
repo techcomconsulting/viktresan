@@ -17,6 +17,7 @@ import { openSheet } from './ui.js';
 import { termsView, privacyView, consentView } from './views/legal.js';
 import { landingView } from './views/landing.js';
 import { adminView } from './views/admin.js';
+import { tipsView } from './views/tips.js';
 
 const root = document.getElementById('app');
 const nav = document.getElementById('nav');
@@ -52,7 +53,8 @@ const routes = [
   [/^\/person\/([^/]+)$/, personView, 'share'],
   [/^\/profil$/, profileView, 'me'],
   [/^\/notiser$/, notificationsView, 'home'],
-  [/^\/admin$/, adminView, null]
+  [/^\/admin$/, adminView, null],
+  [/^\/tips$/, tipsView, 'me']
 ];
 
 export const ctx = {

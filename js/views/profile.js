@@ -82,6 +82,7 @@ export async function profileView(el, ctx) {
           <button class="list-row" data-kostgoals><span style="color:#7B5EA7">${icon('food')}</span><span class="grow stack" style="gap:2px"><span class="title" style="font-weight:600">Kostmål</span><span class="sub">${p.kcalGoal ? p.kcalGoal + ' kcal per dag' : 'Inget mål satt'}</span></span>${icon('right', 18, 2)}</button>
           <a class="list-row" href="#/bilder"><span style="color:var(--accent)">${icon('camera')}</span><span class="grow title" style="font-weight:600">Bilder</span>${icon('right', 18, 2)}</a>
           <a class="list-row" href="#/behandling"><span style="color:var(--accent)">${icon('pill')}</span><span class="grow title" style="font-weight:600">Behandling</span>${icon('right', 18, 2)}</a>
+          <a class="list-row" href="#/tips"><span style="color:var(--accent)">${icon('sparkle')}</span><span class="grow title" style="font-weight:600">Tips och prylar</span>${icon('right', 18, 2)}</a>
           <a class="list-row" href="#/notiser"><span style="color:var(--accent)">${icon('bell')}</span><span class="grow title" style="font-weight:600">Notiser</span><span class="chip warn js-unread hidden"></span>${icon('right', 18, 2)}</a>
         </div>
       </section>

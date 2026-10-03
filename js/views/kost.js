@@ -1,4 +1,5 @@
 // Kost: dagens mat, lägg till mat, skanna streckkod.
+import { tipLink } from '../tips.js';
 import {
   MEALS, mealName, mealNow, loadDay, dayTotals, logFood, updateLogged, removeLogged, loadRecent, loadWater, setWater,
   loadFavs, isFav, setFav, loadSavedMeals, saveMeal, deleteSavedMeal, logSavedMeal, savedMealKcal,
@@ -789,6 +790,7 @@ export async function trainingView(el, ctx) {
         </section>
         <button class="btn block" data-saveown style="background:#2E7A5C;color:#fff">Lägg till</button>
         <p class="small muted">Lägg inte in samma pass två gånger. Klockans siffra räknar redan med det du gjort.</p>` : ''}
+      ${tipLink('klocka', 'Har du ingen klocka?')}
     </div>`;
 
     el.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => { tab = b.dataset.tab; draw(); }));

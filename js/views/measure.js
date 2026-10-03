@@ -1,4 +1,5 @@
 // Ny mätning och resultatet efteråt.
+import { tipLink } from '../tips.js';
 import { loadEntries, addEntry, METRICS, createPost, notify, addPhoto, loadPeople, loadGroups, lastValues } from '../data.js';
 import { esc, fmt1, signed, parseNum, icon, dDay, tHM, dLong, toast, busy, openSheet, errorText, resizeImage, round1 } from '../ui.js';
 import { progressInfo } from './overview.js';
@@ -38,6 +39,7 @@ export async function measureView(el, ctx) {
       <p class="error hidden" role="alert"></p>
       <button class="btn primary block" type="submit">Spara mätning</button>
     </form>
+    <div class="stack" style="gap:6px">${tipLink('vag', 'Saknar du våg?')}${tipLink('mattband', 'Saknar du måttband?')}</div>
   </div>`;
 
   const form = el.querySelector('form');

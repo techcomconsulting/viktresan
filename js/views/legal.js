@@ -36,6 +36,12 @@ export async function termsView(el, ctx) {
       'Skriv inget kränkande i inlägg och kommentarer.',
       'Vi kan ta bort innehåll eller konton som bryter mot reglerna.'
     ]))}
+    ${sec('Reklamlänkar', ul([
+      'Under <b>Tips och prylar</b> finns länkar till butiker. De är märkta <b>Reklamlänk</b>.',
+      'Köper du något via en länk får vi en liten ersättning. Priset blir inte högre för dig.',
+      'Köpet görs hos butiken. Butikens egna villkor gäller.',
+      'Vi tipsar aldrig om bantningspiller eller produkter som lovar snabb viktnedgång.'
+    ]))}
     ${sec('Ingen garanti', ul([
       'Appen är gratis. Den kan ibland ha fel eller inte fungera.',
       'Vi gör vårt bästa för att inget ska försvinna, men vi kan inte lova det.',
@@ -60,7 +66,7 @@ export async function privacyView(el, ctx) {
     ${sec('Kort sagt', ul([
       'Det du sparar är <b>privat</b>. Bara du ser det.',
       'Andra ser bara det <b>du själv väljer</b> att dela.',
-      'Vi <b>säljer aldrig</b> dina uppgifter. Ingen reklam. Ingen spårning.',
+      'Vi <b>säljer aldrig</b> dina uppgifter. Inga annonser som följer dig. Ingen spårning.',
       'Du kan <b>ladda ner</b> och <b>radera</b> allt när du vill.'
     ]))}
     ${sec('Vem ansvarar', p(`<b>${COMPANY}</b> är personuppgiftsansvarig.<br>Kontakt: <a href="mailto:${CONTACT}">${CONTACT}</a>`))}
@@ -79,7 +85,8 @@ export async function privacyView(el, ctx) {
     ${sec('Var det sparas', ul([
       '<b>Google Firebase</b> (Google Cloud) sparar uppgifterna. Google är vårt personuppgiftsbiträde. Uppgifter kan hanteras utanför EU. Google skyddar dem då med EU:s standardavtal.',
       '<b>GitHub Pages</b> visar själva appen. GitHub kan se din IP-adress när du öppnar den.',
-      'När du skannar eller söker en vara skickas bara <b>streckkoden eller sökordet</b> till Open Food Facts. Inga uppgifter om dig.'
+      'När du skannar eller söker en vara skickas bara <b>streckkoden eller sökordet</b> till Open Food Facts. Inga uppgifter om dig.',
+      'Klickar du på en <b>reklamlänk</b> under Tips och prylar kommer du till butikens webbplats. Butiken och reklamnätverket ser att klicket kom från Viktresan och kan spara en cookie. Vi skickar <b>inga uppgifter</b> om dig, din vikt eller din kost.'
     ]))}
     ${sec('Hur länge', p('Så länge du har kvar ditt konto. När du raderar kontot tas allt bort direkt.'))}
     ${sec('Dina rättigheter', ul([

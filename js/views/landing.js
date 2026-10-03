@@ -49,7 +49,8 @@ const FEATURES = [
 
 export const FAQ = [
   ['Kostar det något?', 'Nej. Viktresan är gratis att använda.'],
-  ['Vem ser mina uppgifter?', 'Bara du. Andra ser bara det du själv väljer att dela. Vi säljer aldrig dina uppgifter och visar ingen reklam.'],
+  ['Vem ser mina uppgifter?', 'Bara du. Andra ser bara det du själv väljer att dela. Vi säljer aldrig dina uppgifter och följer inte vad du gör på andra sidor.'],
+  ['Hur tjänar ni pengar?', 'Under <b>Tips och prylar</b> finns tydligt märkta reklamlänkar till butiker. Köper du något där får vi en liten ersättning. Det kostar inget extra för dig, och vi lämnar aldrig ut uppgifter om dig.'],
   ['Måste jag visa hur mycket jag väger?', 'Nej. Du kan välja att bara dela <b>procent</b>, till exempel "−4 %". Eller inte dela något alls.'],
   ['Fungerar det på Android?', 'Ja. Viktresan fungerar på iPhone, Android och dator. Du behöver inte ladda ner något från App Store eller Google Play.'],
   ['Hur lägger jag appen på hemskärmen?', '<b>iPhone:</b> öppna i Safari, tryck på dela-knappen och välj <b>Lägg till på hemskärmen</b>.<br><b>Android:</b> öppna i Chrome, tryck på menyn ⋮ och välj <b>Lägg till på startskärmen</b>.'],
@@ -72,7 +73,7 @@ export async function landingView(el) {
       <div class="row" style="gap:14px;flex-wrap:wrap;font-size:14px;color:var(--muted)">
         <span class="row" style="gap:4px">${icon('check', 16, 2.4)}Gratis</span>
         <span class="row" style="gap:4px">${icon('check', 16, 2.4)}Privat</span>
-        <span class="row" style="gap:4px">${icon('check', 16, 2.4)}Ingen reklam</span>
+        <span class="row" style="gap:4px">${icon('check', 16, 2.4)}Ingen spårning</span>
       </div>
     </section>
 
