@@ -2,9 +2,10 @@
 import {
   MEALS, mealName, mealNow, loadDay, dayTotals, logFood, updateLogged, removeLogged, loadRecent, loadWater, setWater,
   loadFavs, isFav, setFav, loadSavedMeals, saveMeal, deleteSavedMeal, logSavedMeal, savedMealKcal,
-  searchSlv, searchShared, searchOff, findBarcode, addSharedFood, nutrition, loadSlv, isLiquid, isHotDrink, pieceGrams, rememberPiece
+  searchSlv, searchShared, searchOff, findBarcode, addSharedFood, nutrition, loadSlv, isLiquid, isHotDrink, pieceGrams, rememberPiece,
+  ACTIVITIES, activityKcal, loadWorkouts, addWorkout, removeWorkout, loadHealth, newHealthToken, forgetHealth
 } from '../food.js';
-import { saveProfile } from '../data.js';
+import { saveProfile, loadEntries, lastValues } from '../data.js';
 import { startScanner } from '../scanner.js';
 import { esc, fmt1, icon, isoDay, dDay, openSheet, confirmSheet, toast, busy, errorText, parseNum, round1 } from '../ui.js';
 
@@ -59,12 +60,17 @@ export async function kostView(el, ctx) {
   const day = state.kostDay || isoDay(new Date());
   state.kostDay = day;
   const today = isoDay(new Date());
-  const [items, water] = await Promise.all([loadDay(me, day), loadWater(me, day)]);
+  const [items, water, workouts, health] = await Promise.all([
+    loadDay(me, day), loadWater(me, day), loadWorkouts(me, day).catch(() => []), loadHealth(state.profile.healthToken, day)
+  ]);
+  const healthKcal = health ? Math.round(health.kcal || 0) : 0;
+  const burned = workouts.reduce((t, w) => t + (w.kcal || 0), 0) + healthKcal;
   const G = goals(state.profile);
   const T = dayTotals(items);
-  const left = G.kcal ? G.kcal - T.kcal : null;
+  const budget = G.kcal ? G.kcal + burned : null;
+  const left = budget ? budget - T.kcal : null;
   const C = 2 * Math.PI * 56;
-  const share = G.kcal ? Math.min(1, T.kcal / G.kcal) : 0;
+  const share = budget ? Math.min(1, T.kcal / budget) : 0;
   const dayLabel = day === today ? 'Idag' : day === addDays(today, -1) ? 'Igår' : dDay(day + 'T12:00:00').split(' ')[0];
 
   const macro = (label, val, goal, bar, bg) => `<div class="stack" style="gap:6px">
@@ -90,15 +96,19 @@ export async function kostView(el, ctx) {
           <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
             <span class="num" style="font-size:30px;font-weight:700;letter-spacing:-.02em">${left != null ? num(Math.abs(left)) : num(T.kcal)}</span>
             <span class="small muted" style="font-size:12px">${left == null ? 'kcal idag' : left >= 0 ? 'kcal kvar' : 'kcal över målet'}</span>
+            ${budget ? `<span class="small muted num" style="font-size:11px">av ${num(budget)}</span>` : ''}
           </div>
         </div>
         <div class="grow stack" style="gap:10px">
           <div class="between" style="font-size:14px"><span class="muted">Mål</span><b class="num">${G.kcal ? num(G.kcal) : '–'}</b></div>
-          <div class="between" style="font-size:14px"><span class="muted">Ätit</span><b class="num">${num(T.kcal)}</b></div>
+          <div class="between" style="font-size:14px"><span class="muted">Ätit</span><b class="num" style="color:var(--pink-ink)">− ${num(T.kcal)}</b></div>
+          <div class="between" style="font-size:14px"><span class="muted">Träning</span><b class="num" style="color:#2E7A5C">+ ${num(burned)}</b></div>
           <div class="divider"></div>
+          ${budget ? `<div class="between" style="font-size:15px"><b>Kvar</b><b class="num">${left >= 0 ? '' : '− '}${num(Math.abs(left))}</b></div>` : ''}
           <button class="btn ghost sm" data-goals style="padding:0;height:32px;justify-content:flex-start">${G.kcal ? 'Ändra mina mål' : 'Sätt mitt mål'}</button>
         </div>
       </div>
+      ${burned && G.kcal ? `<div style="padding:10px 12px;border-radius:14px;background:#EAF4EE;color:#1F5A41;font-size:13px;line-height:1.4">Du har tränat bort <b>${num(burned)} kcal</b>. Därför får du äta <b>${num(burned)} kcal mer</b>.</div>` : ''}
       <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
         ${macro('Protein', T.p, G.p, 'var(--accent)', '#F2EDF9')}
         ${macro('Kolhydrater', T.c, G.c, 'var(--pink)', '#FCEEF4')}
@@ -116,6 +126,22 @@ export async function kostView(el, ctx) {
         <div class="pills" role="group" aria-label="Storlek på glaset" style="flex:1">
           ${[20, 25, 33, 50].map((cl) => `<button type="button" data-size="${cl}" aria-pressed="${cl === G.glass}" style="height:36px;font-size:13px">${cl} cl</button>`).join('')}
         </div></div>
+    </section>
+
+    <section class="card flush">
+      <div class="row" style="gap:10px;padding:14px 12px 10px 16px">
+        <div class="grow stack" style="gap:1px"><span style="font-size:16px;font-weight:700">Träning</span>
+          <span class="small" style="color:${burned ? '#2E7A5C' : 'var(--muted)'};font-weight:600">${burned ? num(burned) + ' kcal förbrukat' : 'Inget ännu'}</span></div>
+        <a href="#/kost/traning" aria-label="Lägg till träning" style="width:44px;height:44px;border-radius:22px;background:#EAF4EE;color:#1F5A41;display:flex;align-items:center;justify-content:center">${icon('plus', 20, 2.4)}</a>
+      </div>
+      ${health ? `<a class="list-row" href="#/kost/traning?flik=halsa" style="min-height:52px;padding:10px 16px">
+        <span style="width:34px;height:34px;border-radius:10px;background:#F3F1EC;display:flex;align-items:center;justify-content:center">${icon('watch', 18, 2)}</span>
+        <span class="grow stack" style="gap:1px"><span style="font-size:15px;font-weight:600">Apple Hälsa</span><span class="small muted" style="font-size:12px">Aktiv energi från klockan</span></span>
+        <span class="num" style="font-size:14px;font-weight:700;color:#2E7A5C">+${num(healthKcal)}</span></a>` : ''}
+      ${workouts.map((w) => `<button class="list-row" data-wo="${w.id}" style="min-height:52px;padding:10px 16px">
+        <span style="width:34px;height:34px;border-radius:10px;background:#EAF4EE;color:#1F5A41;display:flex;align-items:center;justify-content:center">${icon(w.kind === 'own' ? 'flag' : 'run', 18, 2)}</span>
+        <span class="grow stack" style="gap:1px"><span style="font-size:15px;font-weight:600">${esc(w.name)}</span><span class="small muted" style="font-size:12px">${w.mins ? w.mins + ' min' : 'Egen siffra'}</span></span>
+        <span class="num" style="font-size:14px;font-weight:700;color:#2E7A5C">+${num(w.kcal)}</span></button>`).join('')}
     </section>
 
     ${MEALS.map(([key, label]) => {
@@ -142,6 +168,11 @@ export async function kostView(el, ctx) {
     if (next > today) return;
     state.kostDay = next;
     ctx.rerender();
+  }));
+  el.querySelectorAll('[data-wo]').forEach((b) => b.addEventListener('click', async () => {
+    const w = workouts.find((x) => x.id === b.dataset.wo);
+    if (!(await confirmSheet({ title: `Ta bort ${w.name}?`, text: `${num(w.kcal)} kcal`, ok: 'Ta bort', danger: true }))) return;
+    try { await removeWorkout(w.id); ctx.rerender(); } catch (ex) { toast(errorText(ex)); }
   }));
   el.querySelector('[data-goals]').addEventListener('click', () => openGoalsSheet(ctx, () => ctx.rerender()));
   el.querySelectorAll('[data-glass]').forEach((b) => b.addEventListener('click', async () => {
@@ -530,19 +561,174 @@ export async function scanView(el, ctx) {
 
 // ---------- NYHET-ruta ----------
 
+const NEWS = [
+  { id: 'vt-news-kost', title: 'Nu kan du registrera kost också!', go: '/kost', rows: [
+    ['scan', '<b>Skanna streckkoden</b> på maten'], ['search', '<b>Sök</b> bland vanlig mat'],
+    ['food', 'Se <b>kalorier, protein</b>, kolhydrater och fett'], ['water', 'Räkna <b>vatten</b> i liter']
+  ], note: 'Kosten är privat. Du väljer själv om någon får se den.' },
+  { id: 'vt-news-traning', title: 'Nu kan du registrera träning!', go: '/kost/traning', rows: [
+    ['run', 'Välj <b>aktivitet och tid</b>, t.ex. promenad 30 min'], ['flag', 'Eller skriv in <b>kalorier från klockan</b>'],
+    ['watch', 'Hämta <b>Aktiv energi</b> från Apple Watch och Hälsa'], ['food', 'Tränar du får du <b>äta mer</b> samma dag']
+  ], note: 'Du hittar det under Kost → Träning.' }
+];
+
 export function maybeShowNews(ctx) {
-  try { if (localStorage.getItem('vt-news-kost')) return; localStorage.setItem('vt-news-kost', '1'); } catch { return; }
+  let n;
+  try { n = NEWS.find((x) => !localStorage.getItem(x.id)); if (!n) return; localStorage.setItem(n.id, '1'); } catch { return; }
   const s = openSheet(`
     <span class="chip warn" style="align-self:flex-start;font-size:13px;letter-spacing:.06em">${icon('sparkle', 14, 2)}NYHET</span>
-    <h2 style="font-size:24px">Nu kan du registrera kost också!</h2>
+    <h2 style="font-size:24px">${n.title}</h2>
     <div class="stack" style="gap:12px;font-size:16px">
-      <div class="row">${icon('scan', 24)}<span><b>Skanna streckkoden</b> på maten</span></div>
-      <div class="row">${icon('search', 24)}<span><b>Sök</b> bland vanlig mat</span></div>
-      <div class="row">${icon('food', 24)}<span>Se <b>kalorier, protein</b>, kolhydrater och fett</span></div>
-      <div class="row"><span style="font-size:22px;width:24px;text-align:center">💧</span><span>Räkna <b>vatten</b> i liter</span></div>
+      ${n.rows.map(([ic, t]) => `<div class="row">${ic === 'water' ? '<span style="font-size:22px;width:24px;text-align:center">💧</span>' : icon(ic, 24)}<span>${t}</span></div>`).join('')}
     </div>
-    <p class="small muted">Kosten är privat. Du väljer själv om någon får se den.</p>
+    <p class="small muted">${n.note}</p>
     <button class="btn primary block" data-try>Testa nu</button>
     <button class="btn ghost block" data-close>Senare</button>`, 'Nyhet');
-  s.el.querySelector('[data-try]').addEventListener('click', () => { s.close(); ctx.go('/kost'); });
+  s.el.querySelector('[data-try]').addEventListener('click', () => { s.close(); ctx.go(n.go); });
+}
+
+// ---------- Lägg till träning ----------
+
+async function latestWeight(uid) {
+  try { return lastValues(await loadEntries(uid), 'weight').last?.weight || null; } catch { return null; }
+}
+
+export async function trainingView(el, ctx) {
+  const { state } = ctx;
+  const me = state.user.uid;
+  const day = state.kostDay || isoDay(new Date());
+  const kg = await latestWeight(me);
+  let tab = /flik=halsa/.test(location.hash) ? 'health' : 'pick';
+  let act = 'walk';
+  let mins = 30;
+  let weight = kg || 75;
+
+  const draw = () => {
+    const kcal = activityKcal(act, mins, weight);
+    const tabs = [['pick', 'Aktivitet'], ['own', 'Egen kcal'], ['health', 'Apple Hälsa']];
+    el.innerHTML = `<div class="screen no-nav">
+      <div class="between">
+        <a href="#/kost" class="icon-btn" aria-label="Stäng">${icon('close', 20, 2)}</a>
+        <span style="font-size:17px;font-weight:700">Lägg till träning</span>
+        <span style="width:44px"></span>
+      </div>
+      <div class="seg" role="group" aria-label="Sätt">${tabs.map(([k, l]) => `<button type="button" data-tab="${k}" aria-pressed="${k === tab}">${l}</button>`).join('')}</div>
+      ${tab === 'pick' ? `
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
+          ${ACTIVITIES.map(([k, l, met]) => `<button type="button" data-act="${k}" aria-pressed="${k === act}" style="min-height:62px;border-radius:16px;cursor:pointer;font-size:13px;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px;background:${k === act ? '#EAF4EE' : '#fff'};color:${k === act ? '#1F5A41' : 'var(--ink)'};border:1.5px solid ${k === act ? '#2E7A5C' : 'var(--field-line)'}">
+            ${esc(l)}<span style="font-size:11px;font-weight:500;color:var(--muted)">${activityKcal(k, 30, weight)} kcal/30 min</span></button>`).join('')}
+        </div>
+        <section class="card stack-lg">
+          <span style="font-size:14px;font-weight:600">Hur länge?</span>
+          <div class="row" style="gap:10px">
+            <button class="btn" data-m="-5" aria-label="Kortare" style="width:52px;padding:0;font-size:26px;background:#EAF4EE;color:#1F5A41">−</button>
+            <label class="grow" style="height:52px;border-radius:16px;border:1px solid var(--field-line);display:flex;align-items:center;justify-content:center;gap:6px">
+              <input data-mins inputmode="numeric" value="${mins}" aria-label="Minuter" style="width:70px;border:0;outline:none;background:transparent;text-align:right;font-size:26px;font-weight:700"><span class="muted" style="font-weight:600">min</span></label>
+            <button class="btn" data-m="5" aria-label="Längre" style="width:52px;padding:0;font-size:26px;background:#EAF4EE;color:#1F5A41">+</button>
+          </div>
+          <div class="between" style="align-items:baseline;border-top:1px solid var(--line);padding-top:10px"><span class="muted" style="font-size:14px">Förbrukat ungefär</span>
+            <span class="num" style="font-size:28px;font-weight:700;color:#2E7A5C">${num(kcal)} <span class="muted" style="font-size:15px">kcal</span></span></div>
+          <div class="row" style="gap:8px;font-size:13px"><label for="kg" class="muted">Räknat på din vikt</label>
+            <div class="unit-input" style="width:100px;height:40px"><input id="kg" data-kg inputmode="decimal" value="${fmt1(weight).replace(',0', '')}"><span>kg</span></div></div>
+        </section>
+        <button class="btn block" data-save style="background:#2E7A5C;color:#fff">Lägg till ${num(kcal)} kcal</button>` : ''}
+      ${tab === 'own' ? `
+        <section class="card stack-lg">
+          <div class="field"><label for="on">Vad gjorde du?</label><input class="input" id="on" maxlength="40" placeholder="t.ex. Spinning"></div>
+          <div class="field"><label for="ok">Kalorier från klockan eller maskinen</label><input class="input" id="ok" inputmode="numeric" placeholder="0"></div>
+          <div class="field"><label for="om">Minuter (valfritt)</label><input class="input" id="om" inputmode="numeric"></div>
+        </section>
+        <button class="btn block" data-saveown style="background:#2E7A5C;color:#fff">Lägg till</button>` : ''}
+      ${tab === 'health' ? healthPanel(state) : ''}
+      ${tab !== 'health' && state.profile.healthToken ? '<p class="small muted">Du har Apple Hälsa kopplat. Lägg inte in samma pass här, klockan räknar redan med det.</p>' : ''}
+    </div>`;
+
+    el.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => { tab = b.dataset.tab; draw(); }));
+    el.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => { act = b.dataset.act; draw(); }));
+    el.querySelectorAll('[data-m]').forEach((b) => b.addEventListener('click', () => { mins = Math.max(5, mins + Number(b.dataset.m)); draw(); }));
+    const mi = el.querySelector('[data-mins]');
+    if (mi) mi.addEventListener('change', () => { const v = parseNum(mi.value); if (v && v > 0 && v < 1000) mins = Math.round(v); draw(); });
+    const ki = el.querySelector('[data-kg]');
+    if (ki) ki.addEventListener('change', () => { const v = parseNum(ki.value); if (v && v > 25 && v < 350) weight = v; draw(); });
+    el.querySelector('[data-save]')?.addEventListener('click', async (e) => {
+      const name = ACTIVITIES.find((x) => x[0] === act)[1];
+      await busy(e.currentTarget, async () => {
+        try { await addWorkout(day, { kind: 'act', act, name, mins, kcal: activityKcal(act, mins, weight) }); toast('Träningen är tillagd.'); ctx.go('/kost'); } catch (ex) { toast(errorText(ex)); }
+      });
+    });
+    el.querySelector('[data-saveown]')?.addEventListener('click', async (e) => {
+      const name = el.querySelector('#on').value.trim() || 'Träning';
+      const k = parseNum(el.querySelector('#ok').value);
+      const m = parseNum(el.querySelector('#om').value);
+      if (!k || k <= 0 || k > 5000) { toast('Skriv hur många kalorier.'); return; }
+      await busy(e.currentTarget, async () => {
+        try { await addWorkout(day, { kind: 'own', name, mins: m ? Math.round(m) : null, kcal: k }); toast('Träningen är tillagd.'); ctx.go('/kost'); } catch (ex) { toast(errorText(ex)); }
+      });
+    });
+    if (tab === 'health') wireHealth(el, ctx, draw);
+  };
+  draw();
+}
+
+// ---------- Apple Hälsa ----------
+
+const PROJECT = 'viktresan-25170';
+const API_KEY = 'AIzaSyCsiVgbTHXX-SUDGNXGP09RfXOdFTOVP3Q';
+const healthUrl = (token) => `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/healthInbox/${token}/days/`;
+const healthBody = () => '{"fields":{"kcal":{"doubleValue":KALORIER},"updated":{"stringValue":"TID"}}}';
+
+function healthPanel(state) {
+  const t = state.profile.healthToken;
+  const step = (n, html) => `<div class="row" style="gap:10px;align-items:flex-start"><b style="width:24px;height:24px;border-radius:12px;background:var(--accent-soft);color:var(--accent-dark);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0">${n}</b><div class="grow" style="font-size:15px;line-height:1.45">${html}</div></div>`;
+  const copy = (key, label) => `<button type="button" class="btn outline sm" data-copy="${key}" style="align-self:flex-start;margin-top:6px">${icon('copy', 16)}${label}</button>`;
+  if (!t) {
+    return `<section class="card stack-lg">
+      <div class="row">${icon('watch', 28)}<b style="font-size:17px">Apple Watch och Hälsa</b></div>
+      <p style="font-size:15px;line-height:1.45">Varje kväll kan din iPhone skicka <b>Aktiv energi</b> från Hälsa hit. Det görs med appen <b>Genvägar</b>, som redan finns i din iPhone.</p>
+      <p class="small muted">Du ställer in det en gång. Det tar ungefär 5 minuter.</p>
+      <button class="btn primary block" data-start>Kom igång</button>
+    </section>`;
+  }
+  return `<section class="card stack-lg">
+    <div class="row">${icon('watch', 28)}<div class="stack" style="gap:0"><b style="font-size:17px">Apple Watch och Hälsa</b><span class="small" style="color:#2E7A5C;font-weight:600">Din nyckel är klar</span></div></div>
+    <p class="small muted">Gör så här i appen <b>Genvägar</b> på iPhone. Ta en bild och skicka till mig om du fastnar.</p>
+    ${step(1, 'Tryck <b>+</b> för en ny genväg. Döp den till <b>Viktresan</b>.')}
+    ${step(2, 'Lägg till <b>Hitta hälsosampel</b> <span class="muted">(Find Health Samples)</span>. Välj <b>Aktiv energi</b> och <b>Startdatum är idag</b>.')}
+    ${step(3, 'Lägg till <b>Beräkna statistik</b> <span class="muted">(Calculate Statistics)</span> och välj <b>Summa</b>.')}
+    ${step(4, 'Lägg till <b>Formatera datum</b> <span class="muted">(Format Date)</span>. Välj <b>Aktuellt datum</b> och format <b>Anpassat</b>.' + copy('fmt', 'Kopiera formatet'))}
+    ${step(5, 'Lägg till <b>Text</b>. Klistra in texten. Byt ordet <b>KALORIER</b> mot <i>Statistik</i> och <b>TID</b> mot <i>Aktuellt datum</i>.' + copy('body', 'Kopiera texten'))}
+    ${step(6, 'Lägg till <b>Hämta innehåll i URL</b> <span class="muted">(Get Contents of URL)</span>. I adressfältet: klistra in <b>början</b>, lägg till <i>Formaterat datum</i>, klistra in <b>slutet</b>.' + copy('url1', 'Kopiera början') + ' ' + copy('url2', 'Kopiera slutet'))}
+    ${step(7, 'Tryck på pilen i samma steg: <b>Metod: PATCH</b>. <b>Rubriker</b>: <code>Content-Type</code> = <code>application/json</code>. <b>Begärans text: Fil</b>, välj <i>Text</i>.')}
+    ${step(8, 'Kör genvägen en gång och tryck <b>Tillåt</b>. Gå sedan till <b>Automatisering</b> → <b>Tidpunkt</b> → kl. 22 varje dag → <b>Kör omedelbart</b>.')}
+    <button class="btn primary block" data-check>Kolla om det fungerar</button>
+    <p class="small muted">Kör genvägen igen när du vill, så uppdateras dagens siffra.</p>
+    <button class="btn ghost block" data-reset style="color:var(--danger)">Byt nyckel (om någon fått tag i den)</button>
+  </section>`;
+}
+
+function wireHealth(el, ctx, redraw) {
+  const { state } = ctx;
+  el.querySelector('[data-start]')?.addEventListener('click', async (e) => {
+    await busy(e.currentTarget, async () => {
+      try { const t = newHealthToken(); await saveProfile(state.user.uid, { healthToken: t }); state.profile.healthToken = t; redraw(); } catch (ex) { toast(errorText(ex)); }
+    });
+  });
+  el.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', async () => {
+    const t = state.profile.healthToken;
+    const text = { fmt: 'yyyy-MM-dd', body: healthBody(), url1: healthUrl(t), url2: '?key=' + API_KEY }[b.dataset.copy];
+    try { await navigator.clipboard.writeText(text); toast('Kopierat!'); } catch {
+      openSheet(`<h2>Kopiera</h2><textarea class="input" readonly style="min-height:120px;font-size:13px">${esc(text)}</textarea><button class="btn block" data-close>Stäng</button>`, 'Kopiera');
+    }
+  }));
+  el.querySelector('[data-check]')?.addEventListener('click', async (e) => {
+    await busy(e.currentTarget, async () => {
+      forgetHealth();
+      const h = await loadHealth(state.profile.healthToken, isoDay(new Date()));
+      if (h) { toast(`Det fungerar! Idag: ${Math.round(h.kcal)} kcal.`); } else { toast('Inget har kommit än. Kör genvägen en gång och försök igen.'); }
+    });
+  });
+  el.querySelector('[data-reset]')?.addEventListener('click', async () => {
+    if (!(await confirmSheet({ title: 'Byta nyckel?', text: 'Den gamla genvägen slutar fungera. Du får göra steg 5 och 6 igen.', ok: 'Byt nyckel', danger: true }))) return;
+    try { const t = newHealthToken(); await saveProfile(state.user.uid, { healthToken: t }); state.profile.healthToken = t; forgetHealth(); redraw(); toast('Ny nyckel skapad.'); } catch (ex) { toast(errorText(ex)); }
+  });
 }

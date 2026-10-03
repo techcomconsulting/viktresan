@@ -325,3 +325,53 @@ export async function loadDayOf(owner, day) {
     return s.docs.map((d) => d.data());
   } catch { return null; }
 }
+
+// ---------- Träning ----------
+
+// MET-värden: hur mycket energi aktiviteten tar jämfört med att sitta still.
+export const ACTIVITIES = [
+  ['walk', 'Promenad', 3.5], ['brisk', 'Rask promenad', 4.3], ['run', 'Löpning', 9.8], ['jog', 'Joggning', 7],
+  ['bike', 'Cykling', 7.5], ['gym', 'Styrketräning', 5], ['swim', 'Simning', 6], ['yoga', 'Yoga', 2.5],
+  ['dance', 'Dans', 5], ['garden', 'Trädgård', 4], ['clean', 'Städning', 3.3], ['ski', 'Längdskidor', 9],
+  ['padel', 'Padel', 6], ['football', 'Fotboll', 7], ['hike', 'Vandring', 6], ['class', 'Gruppträning', 6.5]
+];
+export const activityKcal = (key, mins, kg) => {
+  const a = ACTIVITIES.find((x) => x[0] === key);
+  return a ? Math.round(a[2] * kg * mins / 60) : 0;
+};
+
+export async function loadWorkouts(u, day) {
+  return cached(`wo:${u}:${day}`, 30000, async () => {
+    const s = await getDocs(query(col(u, 'workouts'), where('day', '==', day)));
+    return s.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => (a.at?.toMillis?.() || 0) - (b.at?.toMillis?.() || 0));
+  });
+}
+export async function addWorkout(day, w) {
+  forget('wo:');
+  await addDoc(col(uid(), 'workouts'), { day, kind: w.kind, act: w.act || '', name: w.name, mins: w.mins || null, kcal: Math.round(w.kcal), at: serverTimestamp() });
+}
+export async function removeWorkout(id) {
+  forget('wo:');
+  await deleteDoc(doc(db, 'users', uid(), 'workouts', id));
+}
+
+// ---------- Apple Hälsa via Genvägar ----------
+// iPhone-genvägen skriver dagens "Aktiv energi" till healthInbox/{nyckel}/days/{datum}.
+// Nyckeln är hemlig och lång, och bara ägaren kan läsa.
+
+export function newHealthToken() {
+  const a = new Uint8Array(24);
+  crypto.getRandomValues(a);
+  return Array.from(a, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+export async function loadHealth(token, day) {
+  if (!token) return null;
+  return cached(`health:${token}:${day}`, 30000, async () => {
+    try {
+      const s = await getDoc(doc(db, 'healthInbox', token, 'days', day));
+      return s.exists() ? s.data() : null;
+    } catch { return null; }
+  });
+}
+export const forgetHealth = () => forget('health:');
