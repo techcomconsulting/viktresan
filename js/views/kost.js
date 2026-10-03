@@ -2,7 +2,7 @@
 import {
   MEALS, mealName, mealNow, loadDay, dayTotals, logFood, updateLogged, removeLogged, loadRecent, loadWater, setWater,
   loadFavs, isFav, setFav, loadSavedMeals, saveMeal, deleteSavedMeal, logSavedMeal, savedMealKcal,
-  searchSlv, searchShared, searchOff, findBarcode, addSharedFood, nutrition, loadSlv, isLiquid, isHotDrink
+  searchSlv, searchShared, searchOff, findBarcode, addSharedFood, nutrition, loadSlv, isLiquid, isHotDrink, pieceGrams, rememberPiece
 } from '../food.js';
 import { saveProfile } from '../data.js';
 import { startScanner } from '../scanner.js';
@@ -186,8 +186,11 @@ export async function openAmountSheet(ctx, food, opts = {}) {
     ? [['cl', 'cl', 10, 'cl', 'cl'], ['dl', 'dl', 100, 'dl', 'dl'],
       isHotDrink(food) ? ['cup', 'Kopp (15 cl)', 150, 'kopp', 'koppar'] : ['glass', 'Glas (20 cl)', 200, 'glas', 'glas']]
     : [['g', 'Gram', 1, 'g', 'g']];
+  let pieceG = liquid ? null : pieceGrams(food);
+  if (!liquid) units.push(['st', 'Styck', pieceG || 100, 'st', 'st']);
   if (food.portionG) units.push(['portion', `Portion (${fmt1(food.portionG)} ${liquid ? 'ml' : 'g'})`, food.portionG, 'portion', 'portioner']);
   if (food.packG) units.push(['pack', 'Hel förp.', food.packG, 'förp.', 'förp.']);
+  const setPiece = (g) => { pieceG = g; const u = units.find((x) => x[0] === 'st'); if (u) u[2] = g; };
   let unit = base;
   let amount = 100;
   if (logged || opts.grams) {
@@ -197,6 +200,8 @@ export async function openAmountSheet(ctx, food, opts = {}) {
     unit = units[2][0]; amount = 1;
   } else if (food.portionG) {
     unit = 'portion'; amount = 1;
+  } else if (pieceG) {
+    unit = 'st'; amount = 1;
   }
   let meal = logged ? logged.meal : (state.kostMeal || mealNow());
   let fav = await isFav(food).catch(() => false);
@@ -204,7 +209,7 @@ export async function openAmountSheet(ctx, food, opts = {}) {
   const s = openSheet(`<div data-body></div>`, food.name);
   const body = s.el.querySelector('[data-body]');
   const grams = () => amount * (units.find((u) => u[0] === unit) || units[0])[2];
-  const step = () => (unit === 'g' ? (amount >= 100 ? 25 : 10) : unit === 'cl' ? 5 : 0.5);
+  const step = () => (unit === 'g' ? (amount >= 100 ? 25 : 10) : unit === 'cl' ? 5 : unit === 'st' ? 1 : 0.5);
   const uWord = () => { const u = units.find((x) => x[0] === unit) || units[0]; return amount === 1 ? u[3] : u[4]; };
 
   const draw = () => {
@@ -230,6 +235,9 @@ export async function openAmountSheet(ctx, food, opts = {}) {
           <button class="btn" data-plus aria-label="Mer" style="width:52px;padding:0;font-size:26px;background:var(--accent-soft);color:var(--accent-dark)">+</button>
         </div>
         ${units.length > 1 ? `<div class="pills" role="group" aria-label="Enhet">${units.map(([k, l]) => `<button type="button" data-unit="${k}" aria-pressed="${k === unit}">${esc(l)}</button>`).join('')}</div>` : ''}
+        ${unit === 'st' ? `<div class="row" style="gap:8px;font-size:14px"><label for="pw" class="muted">1 st väger ungefär</label>
+          <div class="unit-input" style="width:104px;height:42px"><input id="pw" data-piece inputmode="decimal" value="${pieceG ? fmt1(pieceG).replace(',0', '') : ''}" placeholder="?"><span>g</span></div></div>
+          ${pieceG ? '' : '<p class="small" style="color:var(--pink-ink);margin:0">Skriv hur mycket en bit väger, så räknar appen rätt.</p>'}` : ''}
       </div>
       <div class="card" style="box-shadow:none;border:1px solid var(--line);padding:14px">
         <div class="between" style="align-items:baseline"><span class="muted" style="font-size:14px;font-weight:600">Energi</span><span class="num" style="font-size:30px;font-weight:700">${num(n.kcal)} <span class="muted" style="font-size:15px">kcal</span></span></div>
@@ -253,10 +261,12 @@ export async function openAmountSheet(ctx, food, opts = {}) {
     body.querySelectorAll('[data-unit]').forEach((b) => { b.onclick = () => {
       const g = grams(); unit = b.dataset.unit;
       const per = (units.find((x) => x[0] === unit) || units[0])[2];
-      amount = unit === 'g' || unit === 'cl' || unit === 'dl' ? round1(g / per) : 1;
+      amount = unit === 'g' || unit === 'cl' || unit === 'dl' ? round1(g / per) : unit === 'st' && pieceG ? Math.max(1, Math.round(g / per)) : 1;
       draw();
     }; });
     body.querySelector('#ml').onchange = (e) => { meal = e.target.value; };
+    const pw = body.querySelector('[data-piece]');
+    if (pw) pw.onchange = () => { const g = parseNum(pw.value); if (g && g > 0 && g < 2000) { setPiece(g); rememberPiece(food, g); } draw(); };
     body.querySelector('[data-fav]').onclick = async () => { fav = !fav; draw(); try { await setFav(food, fav); toast(fav ? 'Sparad som favorit.' : 'Borttagen från favoriter.'); } catch (ex) { toast(errorText(ex)); } };
     body.querySelector('[data-cancel]')?.addEventListener('click', () => s.close());
     body.querySelector('[data-del]')?.addEventListener('click', async () => {
@@ -266,6 +276,7 @@ export async function openAmountSheet(ctx, food, opts = {}) {
       const v = parseNum(inp.value);
       if (v && v > 0) amount = v;
       const g = grams();
+      if (unit === 'st' && !pieceG) { toast('Skriv hur mycket en bit väger.'); return; }
       const a = fmt1(amount).replace(',0', '');
       const total = liquid ? `${fmt1(g / 10).replace(',0', '')} cl` : `${Math.round(g)} g`;
       const label = unit === base ? total : unit === 'dl' ? `${a} dl` : `${a} ${uWord()} · ${total}`;

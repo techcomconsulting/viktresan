@@ -44,6 +44,34 @@ export function isLiquid(food) {
   if (food.liquid != null) return !!food.liquid;
   return looksLikeDrink(food.name);
 }
+// Ungefärlig vikt för en bit (ätlig del), t.ex. ett ägg eller en banan.
+const PIECES = [
+  [/^(ägg|hönsägg)$/, 50], [/^banan$/, 110], [/^äpple$/, 150], [/^päron$/, 150], [/^apelsin$/, 140],
+  [/^(mandarin|clementin|klementin|satsuma)/, 55], [/^kiwi$/, 70], [/^(persika|nektarin)/, 130], [/^plommon$/, 50],
+  [/^avokado$/, 140], [/^tomat$/, 90], [/^(körsbärstomat|cocktailtomat)/, 15], [/^morot$/, 70], [/^potatis$/, 90],
+  [/^(lök|gul lök|rödlök)$/, 80], [/^paprika$/, 150], [/^knäckebröd/, 12], [/^(bröd|limpa|rostbröd|formfranska|toast)$/, 30],
+  [/^(fralla|småfranska|frukostbulle|bulle)/, 50], [/^(kanelbulle|vetebulle|kardemummabulle)/, 50], [/^tortilla/, 40],
+  [/^(köttbulle|köttbullar)/, 20], [/^(dadel|dadlar)/, 8], [/^(valnöt|valnötter)/, 5], [/^(mandel|mandlar)$/, 1.2],
+  [/^(jordgubbe|jordgubbar)/, 15], [/^(proteinbar|bar)\b/, 50], [/^(riskaka|riskakor)/, 9], [/^(skorpa|skorpor)/, 10]
+];
+export function pieceGrams(food) {
+  if (food.pieceG) return food.pieceG;
+  try {
+    const mine = JSON.parse(localStorage.getItem('vt-pieces') || '{}');
+    if (mine[food.name]) return mine[food.name];
+  } catch { /* ok */ }
+  const first = String(food.name || '').toLowerCase().split(/[\s,]+/)[0] || '';
+  const hit = PIECES.find(([re]) => re.test(first));
+  return hit ? hit[1] : null;
+}
+export function rememberPiece(food, g) {
+  try {
+    const mine = JSON.parse(localStorage.getItem('vt-pieces') || '{}');
+    mine[food.name] = g;
+    localStorage.setItem('vt-pieces', JSON.stringify(mine));
+  } catch { /* ok */ }
+}
+
 export const isHotDrink = (food) => /(kaffe|espresso|cappuccino|latte|\bte\b|kakao)/i.test(food.name || '');
 
 // Räknar ut näring för en mängd.
@@ -74,7 +102,7 @@ export async function logFood(day, meal, food, grams, label) {
   await addDoc(col(uid(), 'foodlog'), {
     day, meal, name: food.name, brand: food.brand || '', grams, label: label || `${r1(grams)} g`,
     ...n, src: food.src || 'fam', ref: String(food.ref || ''), per100: food.per100,
-    portionG: food.portionG || null, packG: food.packG || null, liquid: isLiquid(food), at: serverTimestamp()
+    portionG: food.portionG || null, packG: food.packG || null, pieceG: food.pieceG || null, liquid: isLiquid(food), at: serverTimestamp()
   });
 }
 
