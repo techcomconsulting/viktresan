@@ -12,6 +12,8 @@ import { treatmentView } from './views/treatment.js';
 import { sharingView, sharePermsView, personView, feedView } from './views/sharing.js';
 import { profileView } from './views/profile.js';
 import { notificationsView } from './views/notifications.js';
+import { kostView, addFoodView, scanView } from './views/kost.js';
+import { openSheet } from './ui.js';
 
 const root = document.getElementById('app');
 const nav = document.getElementById('nav');
@@ -28,7 +30,10 @@ const routes = [
   [/^\/$/, overviewView, 'home'],
   [/^\/matning$/, measureView, null],
   [/^\/matning\/klar$/, resultView, null],
-  [/^\/historik$/, historyView, 'stats'],
+  [/^\/historik$/, historyView, 'home'],
+  [/^\/kost$/, kostView, 'kost'],
+  [/^\/kost\/lagg$/, addFoodView, null],
+  [/^\/kost\/skanna$/, scanView, null],
   [/^\/bilder$/, photosView, 'me'],
   [/^\/behandling$/, treatmentView, 'me'],
   [/^\/flode$/, feedView, 'share'],
@@ -44,8 +49,26 @@ export const ctx = {
   go: (path) => { if (location.hash === '#' + path) route(); else location.hash = '#' + path; },
   reloadProfile: async () => { state.profile = await getProfile(state.user.uid); return state.profile; },
   rerender: () => route(),
-  updateBadges: () => updateBadges()
+  updateBadges: () => updateBadges(),
+  onLeave: (fn) => { leaveFns.push(fn); }
 };
+const leaveFns = [];
+function runLeave() { while (leaveFns.length) { try { leaveFns.pop()(); } catch { /* ok */ } } }
+
+function openAddMenu() {
+  const s = openSheet(`
+    <h2>Lägg till</h2>
+    <div class="card flush" style="box-shadow:none;border:1px solid var(--line)">
+      <a class="list-row" href="#/matning" data-close><span style="width:44px;height:44px;border-radius:14px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center">${icon('chart', 24)}</span>
+        <span class="grow stack" style="gap:2px"><span class="title">Ny mätning</span><span class="sub">Vikt och mått</span></span></a>
+      <a class="list-row" href="#/kost/lagg" data-close><span style="width:44px;height:44px;border-radius:14px;background:var(--pink-soft);color:var(--pink);display:flex;align-items:center;justify-content:center">${icon('food', 24)}</span>
+        <span class="grow stack" style="gap:2px"><span class="title">Lägg till mat</span><span class="sub">Skanna eller sök</span></span></a>
+      <a class="list-row" href="#/kost/skanna" data-close><span style="width:44px;height:44px;border-radius:14px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center">${icon('scan', 24)}</span>
+        <span class="grow stack" style="gap:2px"><span class="title">Skanna streckkod</span><span class="sub">Direkt till kameran</span></span></a>
+    </div>
+    <button class="btn block" data-close>Stäng</button>`, 'Lägg till');
+  s.el.querySelectorAll('a[data-close]').forEach((a) => a.addEventListener('click', () => { state.kostDay = null; }));
+}
 
 function renderNav(active) {
   if (!active) { nav.classList.add('hidden'); return; }
@@ -54,11 +77,12 @@ function renderNav(active) {
     `<a href="${href}" ${key === active ? 'aria-current="page"' : ''}><span class="ic">${icon(ic, 24)}</span><span>${label}</span></a>`;
   nav.innerHTML = `<div class="nav-inner">
     ${item('home', '#/', 'home', 'Översikt')}
-    ${item('stats', '#/historik', 'chart', 'Historik')}
-    <a href="#/matning" class="mat"><span class="plus">${icon('plus', 22, 2.2)}</span><span>Mät</span></a>
+    ${item('kost', '#/kost', 'food', 'Kost')}
+    <a href="#" class="mat" data-add><span class="plus">${icon('plus', 22, 2.2)}</span><span>Lägg till</span></a>
     ${item('share', '#/flode', 'comment', 'Flöde')}
     ${item('me', '#/profil', 'user', 'Profil')}
   </div>`;
+  nav.querySelector('[data-add]').addEventListener('click', (e) => { e.preventDefault(); openAddMenu(); });
 }
 
 export function updateBadges() {
@@ -79,6 +103,7 @@ async function route() {
   if (!found) { location.hash = '#/'; return; }
   const [re, view, active] = found;
   const params = path.match(re).slice(1).map(decodeURIComponent);
+  runLeave();
   const my = ++routing;
   renderNav(state.user ? active : null);
   const slow = setTimeout(() => { if (my === routing) root.innerHTML = '<div class="boot">Laddar…</div>'; }, 350);

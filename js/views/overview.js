@@ -2,6 +2,9 @@
 import { loadEntries, loadFeed, getCard } from '../data.js';
 const withWeight = (list) => list.filter((e) => e.weight != null);
 import { installBanner, wireInstallBanner } from '../install.js';
+import { loadDay, dayTotals } from '../food.js';
+import { maybeShowNews } from './kost.js';
+import { isoDay } from '../ui.js';
 import { esc, fmt1, signed, icon, bmi, bmiScale, dDay, dShort, round1, avatar } from '../ui.js';
 
 export function progressInfo(start, goal, current) {
@@ -42,7 +45,16 @@ export async function overviewView(el, ctx) {
   const { state } = ctx;
   const uid = state.user.uid;
   const p = state.profile;
-  const [entries, feed] = await Promise.all([loadEntries(uid), loadFeed(uid, 1).catch(() => [])]);
+  const [entries, feed, food] = await Promise.all([loadEntries(uid), loadFeed(uid, 1).catch(() => []), loadDay(uid, isoDay(new Date())).catch(() => [])]);
+  const FT = dayTotals(food);
+  const kGoal = p.kcalGoal || null;
+  const kostCard = `<a class="card row" href="#/kost" style="text-decoration:none;color:inherit;padding:14px 16px">
+    <span style="width:44px;height:44px;border-radius:14px;background:var(--pink-soft);color:var(--pink);display:flex;align-items:center;justify-content:center;flex-shrink:0">${icon('food', 22)}</span>
+    <span class="grow stack" style="gap:2px"><span class="small muted" style="font-weight:600">Kost idag</span>
+      <span style="font-size:17px;font-weight:700" class="num">${food.length ? `${Math.round(FT.kcal).toLocaleString('sv-SE')}${kGoal ? ' av ' + kGoal.toLocaleString('sv-SE') : ''} kcal` : 'Inget registrerat än'}</span>
+      ${food.length ? `<span class="small muted">${fmt1(FT.p)} g protein</span>` : ''}</span>
+    ${icon('right', 18, 2)}</a>`;
+  setTimeout(() => maybeShowNews(ctx), 600);
   const latest = feed[0] || null;
   const latestCard = latest ? await getCard(latest.owner) : null;
   const wEntries = withWeight(entries);
@@ -61,6 +73,7 @@ export async function overviewView(el, ctx) {
   if (!last) {
     el.innerHTML = `<div class="screen">${header}
       ${installBanner()}
+      ${kostCard}
       <div class="card stack-lg">
         <h2>${entries.length ? 'Lägg in din vikt' : 'Dags för första mätningen'}</h2>
         <p class="muted">${entries.length ? 'Dina mått är sparade. Lägg in vikten nästa gång, så ser du dina framsteg här.' : 'Fyll i det du vill: vikt, arm, midja, lår eller höft.'}</p>
@@ -110,6 +123,8 @@ export async function overviewView(el, ctx) {
         <span class="small muted">${start ? signed((total / start) * 100, '%') : ''} sedan ${esc(dShort(wEntries[0].at))}</span>
       </a>
     </div>
+    ${kostCard}
+    <a class="btn outline block" href="#/historik">${icon('chart', 20)}Historik och grafer</a>
     ${latest ? latestPost(latest, latestCard) : ''}
     ${installBanner()}
   </div>`;

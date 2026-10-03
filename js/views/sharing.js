@@ -11,6 +11,8 @@ import {
 import { buildTimeline, photoImg } from './photos.js';
 import { treatmentList } from './treatment.js';
 import { openPostSheet } from './measure.js';
+import { loadDayOf, dayTotals, MEALS } from '../food.js';
+import { isoDay } from '../ui.js';
 
 const permText = (s) => PERMS.filter(([k]) => s.perms?.[k]).map(([k, l]) => (k === 'weight' && !s.perms.weightKg ? 'Vikt i %' : l.split(' ')[0])).join(' · ') || 'Inget valt än';
 
@@ -266,7 +268,7 @@ export async function sharingView(el, ctx) {
     });
 
     const openInviteSheet = (person) => {
-      const perms = { weight: true, weightKg: false, measures: false, history: false, photos: false, posts: true, treatment: false };
+      const perms = { weight: true, weightKg: false, measures: false, history: false, photos: false, posts: true, food: false, treatment: false };
       const range = { value: '3m' };
       const s = openSheet(`
         <div class="row">${avatar(person.firstName, person.avatar, 48)}<h2>Dela med ${esc(person.firstName)}?</h2></div>
@@ -346,6 +348,7 @@ export async function personView(el, ctx, owner) {
   const card = await getCard(owner);
   const name = card?.firstName || share.ownerName;
   const kg = !!(P.weight && P.weightKg);
+  let foodToday = null;
   const [w, pw, ph, m, entries, photos, posts, treat] = await Promise.all([
     kg ? getSummary(owner, 'weight') : null,
     P.weight && !kg ? getSummary(owner, 'percent') : null,
@@ -354,8 +357,9 @@ export async function personView(el, ctx, owner) {
     P.history && (kg || P.measures) ? loadEntries(owner, share.historyRange === 'all' ? null : HISTORY_DAYS) : [],
     P.photos ? loadPhotos(owner) : [],
     loadPostsOf(owner, me),
-    P.treatment ? loadTreatments(owner) : []
-  ]);
+    P.treatment ? loadTreatments(owner) : [],
+    P.food ? loadDayOf(owner, isoDay(new Date())) : null
+  ]).then((r) => { foodToday = r.pop(); return r; });
 
   const parts = [];
   if (pw) {
@@ -413,6 +417,16 @@ export async function personView(el, ctx, owner) {
         <div class="stack">${photoImg(a, 'Start')}<b class="small">Start · ${esc(dShort(a.at))}</b></div>
         <div class="stack">${photoImg(b, 'Nu')}<b class="small">${b ? 'Nu · ' + esc(dShort(b.at)) : 'Nu'}</b></div></div></section>`;
     }));
+  }
+  if (P.food && foodToday) {
+    const T = dayTotals(foodToday);
+    parts.push(`<section class="card stack"><h2>Kost idag</h2>
+      ${foodToday.length ? `<div class="between"><span class="muted">Energi</span><b class="num">${Math.round(T.kcal).toLocaleString('sv-SE')} kcal</b></div>
+        <div class="grid2" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+          <div><div class="small muted">Protein</div><b>${fmt1(T.p)} g</b></div><div><div class="small muted">Kolh.</div><b>${fmt1(T.c)} g</b></div><div><div class="small muted">Fett</div><b>${fmt1(T.f)} g</b></div></div>
+        ${MEALS.map(([k, l]) => { const n = foodToday.filter((i) => i.meal === k); return n.length ? `<div class="between small" style="padding-top:6px;border-top:1px solid var(--line)"><span>${l}</span><span class="muted">${esc(n.map((i) => i.name).join(', '))}</span></div>` : ''; }).join('')}`
+        : '<p class="muted">Inget registrerat idag.</p>'}
+    </section>`);
   }
   if (P.treatment) parts.push(`<section class="stack"><h2>Behandling</h2>${treatmentList(treat, false)}</section>`);
   if (P.posts || posts.length) parts.push(`<section class="stack"><h2>Inlägg</h2>${posts.length ? posts.map((p) => postCard(p, name, card?.avatar, me)).join('') : '<div class="card empty">Inga inlägg än.</div>'}</section>`);

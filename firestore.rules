@@ -75,6 +75,8 @@ service cloud.firestore {
         allow read: if shared(uid, 'measures') && shared(uid, 'history') && inRange(uid);
       }
       match /photos/{id} { allow read: if shared(uid, 'photos'); }
+      match /foodlog/{id} { allow read: if shared(uid, 'food'); }
+      match /water/{id} { allow read: if shared(uid, 'food'); }
       match /treatments/{id} { allow read: if shared(uid, 'treatment'); }
 
     }
@@ -115,6 +117,18 @@ service cloud.firestore {
         allow write: if canSeePost(postData(pid)) && rid == me();
         allow delete: if signedIn() && postData(pid).owner == me();
       }
+    }
+
+    // Varor som någon i appen har lagt till (t.ex. en streckkod som saknades).
+    // Alla inloggade kan läsa. Bara den som skapade varan kan ändra den.
+    match /foods/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.createdBy == me()
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 80
+        && request.resource.data.per100.kcal is number;
+      allow update, delete: if signedIn() && resource.data.createdBy == me();
     }
 
     // Delningar mellan två personer. Id = ägare_mottagare.

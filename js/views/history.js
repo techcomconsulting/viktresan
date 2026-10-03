@@ -1,6 +1,6 @@
 // Historik och statistik.
 import { loadEntries, deleteEntry, METRICS, lastValues } from '../data.js';
-import { esc, fmt1, signed, lineChart, bmi, dShort, tHM, icon, confirmSheet, toast, errorText, round1 } from '../ui.js';
+import { esc, fmt1, signed, lineChart, bmi, dShort, tHM, icon, confirmSheet, toast, errorText, round1, backLink } from '../ui.js';
 
 const PERIODS = [['1m', '1 mån', 31], ['3m', '3 mån', 92], ['6m', '6 mån', 183], ['1y', '1 år', 366], ['all', 'All tid', null]];
 
@@ -14,7 +14,7 @@ export async function historyView(el, ctx) {
 
   const draw = () => {
     if (!entries.length) {
-      el.innerHTML = `<div class="screen"><h1>Historik</h1>
+      el.innerHTML = `<div class="screen">${backLink('#/', 'Översikt')}<h1>Historik</h1>
         <div class="card empty">Här syns dina grafer när du har gjort mätningar.<br><br><a class="btn primary" href="#/matning">Gör en mätning</a></div></div>`;
       return;
     }
@@ -41,6 +41,7 @@ export async function historyView(el, ctx) {
     const diff = (a) => (a.length >= 2 ? a[a.length - 1] - a[0] : null);
 
     el.innerHTML = `<div class="screen">
+      ${backLink('#/', 'Översikt')}
       <div class="stack" style="gap:2px"><h1>Historik</h1><span class="muted" style="font-size:14px">${entries.length} mätningar sedan ${esc(dShort(first.at))}</span></div>
       <div class="seg" role="group" aria-label="Tidsperiod">
         ${PERIODS.map(([k, l]) => `<button type="button" data-period="${k}" aria-pressed="${k === period}">${l}</button>`).join('')}

@@ -52,6 +52,7 @@ export const PERMS = [
   ['history', 'Historik', 'Tidigare mätningar och grafer'],
   ['photos', 'Bilder', 'Dina före- och efterbilder'],
   ['posts', 'Inlägg', 'Framsteg du väljer att dela'],
+  ['food', 'Kost', 'Mat, kalorier och vatten per dag'],
   ['treatment', 'Behandling och medicin', 'Känslig information. Av som standard.']
 ];
 
