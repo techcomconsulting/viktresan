@@ -2,7 +2,7 @@
 import {
   MEALS, mealName, mealNow, loadDay, dayTotals, logFood, updateLogged, removeLogged, loadRecent, loadWater, setWater,
   loadFavs, isFav, setFav, loadSavedMeals, saveMeal, deleteSavedMeal, logSavedMeal, savedMealKcal,
-  searchSlv, searchShared, searchOff, findBarcode, addSharedFood, nutrition, loadSlv
+  searchSlv, searchShared, searchOff, findBarcode, addSharedFood, nutrition, loadSlv, isLiquid, isHotDrink
 } from '../food.js';
 import { saveProfile } from '../data.js';
 import { startScanner } from '../scanner.js';
@@ -156,7 +156,7 @@ export async function kostView(el, ctx) {
   el.querySelectorAll('[data-meal]').forEach((a) => a.addEventListener('click', () => { state.kostMeal = a.dataset.meal; }));
   el.querySelectorAll('[data-item]').forEach((b) => b.addEventListener('click', () => {
     const it = items.find((x) => x.id === b.dataset.item);
-    openAmountSheet(ctx, { src: it.src, ref: it.ref, name: it.name, brand: it.brand, per100: it.per100, portionG: it.portionG, packG: it.packG }, { logged: it, onDone: () => ctx.rerender() });
+    openAmountSheet(ctx, { src: it.src, ref: it.ref, name: it.name, brand: it.brand, per100: it.per100, portionG: it.portionG, packG: it.packG, liquid: it.liquid }, { logged: it, onDone: () => ctx.rerender() });
   }));
   el.querySelectorAll('[data-savemeal]').forEach((b) => b.addEventListener('click', () => {
     const list = items.filter((i) => i.meal === b.dataset.savemeal);
@@ -179,24 +179,37 @@ export async function kostView(el, ctx) {
 export async function openAmountSheet(ctx, food, opts = {}) {
   const { state } = ctx;
   const logged = opts.logged || null;
-  const units = [['g', 'Gram', 1]];
-  if (food.portionG) units.push(['portion', `Portion (${fmt1(food.portionG)} g)`, food.portionG]);
-  if (food.packG) units.push(['pack', 'Hel förp.', food.packG]);
-  let unit = 'g';
-  let amount = logged ? logged.grams : (food.portionG ? 1 : 100);
-  if (!logged && food.portionG) unit = 'portion';
-  if (opts.grams && !logged) { unit = 'g'; amount = opts.grams; }
+  const liquid = isLiquid(food);
+  const base = liquid ? 'cl' : 'g';
+  // [nyckel, knapptext, gram per enhet, ord i en, ord i flera]
+  const units = liquid
+    ? [['cl', 'cl', 10, 'cl', 'cl'], ['dl', 'dl', 100, 'dl', 'dl'],
+      isHotDrink(food) ? ['cup', 'Kopp (15 cl)', 150, 'kopp', 'koppar'] : ['glass', 'Glas (20 cl)', 200, 'glas', 'glas']]
+    : [['g', 'Gram', 1, 'g', 'g']];
+  if (food.portionG) units.push(['portion', `Portion (${fmt1(food.portionG)} ${liquid ? 'ml' : 'g'})`, food.portionG, 'portion', 'portioner']);
+  if (food.packG) units.push(['pack', 'Hel förp.', food.packG, 'förp.', 'förp.']);
+  let unit = base;
+  let amount = 100;
+  if (logged || opts.grams) {
+    unit = base;
+    amount = (logged ? logged.grams : opts.grams) / (liquid ? 10 : 1);
+  } else if (liquid) {
+    unit = units[2][0]; amount = 1;
+  } else if (food.portionG) {
+    unit = 'portion'; amount = 1;
+  }
   let meal = logged ? logged.meal : (state.kostMeal || mealNow());
   let fav = await isFav(food).catch(() => false);
 
   const s = openSheet(`<div data-body></div>`, food.name);
   const body = s.el.querySelector('[data-body]');
   const grams = () => amount * (units.find((u) => u[0] === unit) || units[0])[2];
-  const step = () => (unit === 'g' ? (amount >= 100 ? 25 : 10) : 0.5);
+  const step = () => (unit === 'g' ? (amount >= 100 ? 25 : 10) : unit === 'cl' ? 5 : 0.5);
+  const uWord = () => { const u = units.find((x) => x[0] === unit) || units[0]; return amount === 1 ? u[3] : u[4]; };
 
   const draw = () => {
     const n = nutrition(food, grams());
-    const uLabel = unit === 'g' ? 'g' : unit === 'portion' ? (amount === 1 ? 'portion' : 'portioner') : 'st';
+    const uLabel = uWord();
     body.innerHTML = `<div class="stack" style="gap:16px">
       <div class="between" style="align-items:flex-start">
         <div class="stack" style="gap:4px">
@@ -225,7 +238,7 @@ export async function openAmountSheet(ctx, food, opts = {}) {
           <div style="padding:9px;border-radius:12px;background:#FCEEF4"><div class="small" style="color:#8A2E55">Kolhydrater</div><b class="num">${fmt1(n.c)} g</b></div>
           <div style="padding:9px;border-radius:12px;background:#F3F1EC"><div class="small" style="color:#4A4E47">Fett</div><b class="num">${fmt1(n.f)} g</b></div>
         </div>
-        <p class="small muted" style="margin-top:8px;font-size:12px">Per 100 g: ${num(food.per100.kcal)} kcal · ${fmt1(food.per100.p)} g protein · ${fmt1(food.per100.c)} g kolh. · ${fmt1(food.per100.f)} g fett</p>
+        <p class="small muted" style="margin-top:8px;font-size:12px">Per ${liquid ? '100 ml' : '100 g'}: ${num(food.per100.kcal)} kcal · ${fmt1(food.per100.p)} g protein · ${fmt1(food.per100.c)} g kolh. · ${fmt1(food.per100.f)} g fett</p>
       </div>
       <div class="field"><label for="ml">Måltid</label><select class="input" id="ml">${MEALS.map(([k, l]) => `<option value="${k}" ${k === meal ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
       <div class="btn-row">
@@ -233,11 +246,16 @@ export async function openAmountSheet(ctx, food, opts = {}) {
         <button class="btn primary" data-add>${logged ? 'Spara' : 'Lägg till'}</button>
       </div></div>`;
 
-    body.querySelector('[data-minus]').onclick = () => { amount = Math.max(unit === 'g' ? 5 : 0.5, round1(amount - step())); draw(); };
+    body.querySelector('[data-minus]').onclick = () => { amount = Math.max(unit === 'g' || unit === 'cl' ? 5 : 0.5, round1(amount - step())); draw(); };
     body.querySelector('[data-plus]').onclick = () => { amount = round1(amount + step()); draw(); };
     const inp = body.querySelector('[data-amount]');
     inp.onchange = () => { const v = parseNum(inp.value); if (v && v > 0) amount = v; draw(); };
-    body.querySelectorAll('[data-unit]').forEach((b) => { b.onclick = () => { const g = grams(); unit = b.dataset.unit; amount = unit === 'g' ? Math.round(g) : 1; draw(); }; });
+    body.querySelectorAll('[data-unit]').forEach((b) => { b.onclick = () => {
+      const g = grams(); unit = b.dataset.unit;
+      const per = (units.find((x) => x[0] === unit) || units[0])[2];
+      amount = unit === 'g' || unit === 'cl' || unit === 'dl' ? round1(g / per) : 1;
+      draw();
+    }; });
     body.querySelector('#ml').onchange = (e) => { meal = e.target.value; };
     body.querySelector('[data-fav]').onclick = async () => { fav = !fav; draw(); try { await setFav(food, fav); toast(fav ? 'Sparad som favorit.' : 'Borttagen från favoriter.'); } catch (ex) { toast(errorText(ex)); } };
     body.querySelector('[data-cancel]')?.addEventListener('click', () => s.close());
@@ -248,7 +266,9 @@ export async function openAmountSheet(ctx, food, opts = {}) {
       const v = parseNum(inp.value);
       if (v && v > 0) amount = v;
       const g = grams();
-      const label = unit === 'g' ? `${fmt1(g).replace(',0', '')} g` : unit === 'portion' ? `${fmt1(amount).replace(',0', '')} ${amount === 1 ? 'portion' : 'portioner'} · ${Math.round(g)} g` : `${fmt1(amount).replace(',0', '')} förp. · ${Math.round(g)} g`;
+      const a = fmt1(amount).replace(',0', '');
+      const total = liquid ? `${fmt1(g / 10).replace(',0', '')} cl` : `${Math.round(g)} g`;
+      const label = unit === base ? total : unit === 'dl' ? `${a} dl` : `${a} ${uWord()} · ${total}`;
       await busy(e.currentTarget, async () => {
         try {
           if (logged) {
@@ -276,15 +296,21 @@ export function openNewFoodSheet(ctx, barcode = '', presetName = '') {
     <p class="muted" style="font-size:14px">Skriv av näringstabellen en gång. Sedan hittar alla den nästa gång.</p>
     <div class="field"><label for="nn">Namn</label><input class="input" id="nn" maxlength="80" value="${esc(presetName)}" placeholder="t.ex. Proteinpudding vanilj"></div>
     <div class="field"><label for="nb">Märke (valfritt)</label><input class="input" id="nb" maxlength="40"></div>
-    <span class="section-title">Per 100 g</span>
+    <label class="check"><input type="checkbox" id="nl"> Det är en dryck (mäts i cl)</label>
+    <span class="section-title" data-per>Per 100 g</span>
     <div>${f('nk', 'Energi', 'kcal')}${f('np', 'Protein', 'g')}${f('nc', 'Kolhydrater', 'g')}${f('nf', 'Fett', 'g')}</div>
     <div class="grid2">
-      <div class="field"><label for="npo">1 portion (g)</label><input class="input" id="npo" inputmode="decimal" placeholder="valfritt"></div>
-      <div class="field"><label for="npa">Hel förp. (g)</label><input class="input" id="npa" inputmode="decimal" placeholder="valfritt"></div>
+      <div class="field"><label for="npo">1 portion (g/ml)</label><input class="input" id="npo" inputmode="decimal" placeholder="valfritt"></div>
+      <div class="field"><label for="npa">Hel förp. (g/ml)</label><input class="input" id="npa" inputmode="decimal" placeholder="valfritt"></div>
     </div>
     ${barcode ? `<p class="small muted">Streckkod ${esc(barcode)} sparas med varan.</p>` : ''}
     <p class="error hidden" role="alert">Fyll i namn och kalorier.</p>
     <div class="btn-row"><button class="btn" data-close>Avbryt</button><button class="btn primary" data-save>Spara</button></div>`, 'Ny vara');
+  const nl = s.el.querySelector('#nl');
+  nl.checked = isLiquid({ name: presetName });
+  const syncPer = () => { s.el.querySelector('[data-per]').textContent = nl.checked ? 'Per 100 ml' : 'Per 100 g'; };
+  nl.addEventListener('change', syncPer);
+  syncPer();
   s.el.querySelector('[data-save]').addEventListener('click', async (e) => {
     const v = (id) => parseNum(s.el.querySelector('#' + id).value);
     const name = s.el.querySelector('#nn').value.trim();
@@ -295,7 +321,7 @@ export function openNewFoodSheet(ctx, barcode = '', presetName = '') {
         const food = await addSharedFood({
           name, brand: s.el.querySelector('#nb').value.trim(), barcode,
           per100: { kcal: Math.round(kcal), p: round1(v('np') || 0), c: round1(v('nc') || 0), f: round1(v('nf') || 0) },
-          portionG: v('npo') || null, packG: v('npa') || null
+          portionG: v('npo') || null, packG: v('npa') || null, liquid: nl.checked
         });
         s.close();
         toast('Varan är sparad.');
@@ -353,7 +379,7 @@ export async function addFoodView(el, ctx) {
     list.querySelectorAll('[data-pick]').forEach((b) => b.addEventListener('click', () => entries[Number(b.dataset.pick)].go()));
   };
   const foodEntry = (f, tag) => ({
-    title: f.name, sub: `${f.brand ? f.brand + ' · ' : ''}${Math.round(f.per100.kcal)} kcal / 100 g`, tag,
+    title: f.name, sub: `${f.brand ? f.brand + ' · ' : ''}${Math.round(f.per100.kcal)} kcal / 100 ${isLiquid(f) ? 'ml' : 'g'}`, tag,
     go: () => openAmountSheet(ctx, f)
   });
 

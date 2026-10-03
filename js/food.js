@@ -31,6 +31,21 @@ function cached(key, ms, fn) {
 }
 const forget = (...parts) => { for (const k of [...mem.keys()]) if (parts.some((p) => k.includes(p))) mem.delete(k); };
 
+// Är det en dryck? Då mäter vi i cl/dl i stället för gram (1 cl ≈ 10 g).
+// Tittar på första ordet i namnet, t.ex. "Kaffe bryggt" eller "Mellanmjölk fett 1,5%".
+const DRINK_FIRST = /^(kaffe|kaffedrink|iskaffe|espresso|cappuccino|caffe|latte|chai|te|nyponte|örtte|mjölk|mellanmjölk|lättmjölk|standardmjölk|minimjölk|havredryck|sojadryck|mandeldryck|risdryck|kokosdryck|ärtdryck|mjölkdryck|chokladdryck|proteindryck|sportdryck|energidryck|måltidsdryck|\S*juice|\S*nektar|\S*saft|\S*dricka|läsk|alkoläsk|cola|lemonad|smoothie|öl|lättöl|folköl|starköl|vin|rödvin|glögg|cider|buljong|vatten|mineralvatten|kakao|filmjölk|kefir|drickyoghurt|yoghurtdryck|\S*dryck)$/i;
+function looksLikeDrink(name) {
+  const n = String(name || '').toLowerCase();
+  if (/pulver|konc\.|glass|choklad(?!dryck)/.test(n) && !/drickf/.test(n)) return false;
+  if (/drickf/.test(n)) return true;
+  return DRINK_FIRST.test(n.split(/[\s,]+/)[0] || '');
+}
+export function isLiquid(food) {
+  if (food.liquid != null) return !!food.liquid;
+  return looksLikeDrink(food.name);
+}
+export const isHotDrink = (food) => /(kaffe|espresso|cappuccino|latte|\bte\b|kakao)/i.test(food.name || '');
+
 // Räknar ut näring för en mängd.
 export function nutrition(food, grams) {
   const k = grams / 100;
@@ -59,7 +74,7 @@ export async function logFood(day, meal, food, grams, label) {
   await addDoc(col(uid(), 'foodlog'), {
     day, meal, name: food.name, brand: food.brand || '', grams, label: label || `${r1(grams)} g`,
     ...n, src: food.src || 'fam', ref: String(food.ref || ''), per100: food.per100,
-    portionG: food.portionG || null, packG: food.packG || null, at: serverTimestamp()
+    portionG: food.portionG || null, packG: food.packG || null, liquid: isLiquid(food), at: serverTimestamp()
   });
 }
 
@@ -84,7 +99,7 @@ export async function loadRecent(u) {
       const key = x.src + ':' + (x.ref || x.name);
       if (seen.has(key) || !x.per100) return;
       seen.add(key);
-      out.push({ food: { src: x.src, ref: x.ref, name: x.name, brand: x.brand, per100: x.per100, portionG: x.portionG, packG: x.packG }, grams: x.grams, label: x.label });
+      out.push({ food: { src: x.src, ref: x.ref, name: x.name, brand: x.brand, per100: x.per100, portionG: x.portionG, packG: x.packG, liquid: x.liquid }, grams: x.grams, label: x.label });
     });
     return out.slice(0, 20);
   });
@@ -120,7 +135,7 @@ export async function isFav(food) {
 export async function setFav(food, on) {
   forget('favs:');
   const ref = doc(db, 'users', uid(), 'foodfav', favId(food));
-  if (on) await setDoc(ref, { food: { src: food.src, ref: String(food.ref || ''), name: food.name, brand: food.brand || '', per100: food.per100, portionG: food.portionG || null, packG: food.packG || null } });
+  if (on) await setDoc(ref, { food: { src: food.src, ref: String(food.ref || ''), name: food.name, brand: food.brand || '', per100: food.per100, portionG: food.portionG || null, packG: food.packG || null, liquid: isLiquid(food) } });
   else await deleteDoc(ref);
 }
 
@@ -136,7 +151,7 @@ export async function saveMeal(name, items) {
   forget('smeals:');
   await addDoc(col(uid(), 'savedmeals'), {
     name,
-    items: items.map((i) => ({ name: i.name, brand: i.brand || '', grams: i.grams, label: i.label, src: i.src, ref: i.ref || '', per100: i.per100, portionG: i.portionG || null, packG: i.packG || null }))
+    items: items.map((i) => ({ name: i.name, brand: i.brand || '', grams: i.grams, label: i.label, src: i.src, ref: i.ref || '', per100: i.per100, portionG: i.portionG || null, packG: i.packG || null, liquid: isLiquid(i) }))
   });
 }
 export async function deleteSavedMeal(id) {
@@ -149,7 +164,7 @@ export async function logSavedMeal(day, meal, m) {
   m.items.forEach((i) => {
     b.set(doc(col(uid(), 'foodlog')), {
       day, meal, name: i.name, brand: i.brand, grams: i.grams, label: i.label, ...nutrition(i, i.grams),
-      src: i.src, ref: i.ref, per100: i.per100, portionG: i.portionG, packG: i.packG, at: serverTimestamp()
+      src: i.src, ref: i.ref, per100: i.per100, portionG: i.portionG, packG: i.packG, liquid: isLiquid(i), at: serverTimestamp()
     });
   });
   await b.commit();
@@ -223,7 +238,7 @@ export async function sharedByBarcode(code) {
 export async function addSharedFood(data) {
   const clean = {
     name: data.name, nameLower: data.name.toLowerCase(), brand: data.brand || '', barcode: data.barcode || '',
-    per100: data.per100, portionG: data.portionG || null, packG: data.packG || null,
+    per100: data.per100, portionG: data.portionG || null, packG: data.packG || null, liquid: !!data.liquid,
     createdBy: uid(), createdAt: serverTimestamp()
   };
   if (data.barcode) {
@@ -237,7 +252,7 @@ export async function addSharedFood(data) {
 // ---------- Open Food Facts (streckkoder) ----------
 
 const OFF = 'https://world.openfoodfacts.org';
-const OFF_FIELDS = 'code,product_name,product_name_sv,brands,nutriments,serving_quantity,product_quantity';
+const OFF_FIELDS = 'code,product_name,product_name_sv,brands,nutriments,serving_quantity,product_quantity,product_quantity_unit,quantity';
 
 function fromOff(p) {
   if (!p) return null;
@@ -250,7 +265,8 @@ function fromOff(p) {
   return {
     src: 'off', ref: p.code, barcode: p.code, name, brand: (p.brands || '').split(',')[0].trim(),
     per100: { kcal: Math.round(Number(kcal)), p: r1(num(n.proteins_100g) || 0), c: r1(num(n.carbohydrates_100g) || 0), f: r1(num(n.fat_100g) || 0) },
-    portionG: num(p.serving_quantity), packG: num(p.product_quantity)
+    portionG: num(p.serving_quantity), packG: num(p.product_quantity),
+    liquid: /ml/i.test(p.product_quantity_unit || '') || /\d\s*(ml|cl|dl|l)\b/i.test(p.quantity || '') || (looksLikeDrink(name) ? true : null)
   };
 }
 
