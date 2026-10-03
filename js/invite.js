@@ -22,6 +22,28 @@ export function readInviter() {
 }
 export function clearInviter() { try { localStorage.removeItem(KEY); } catch { /* ok */ } }
 
+// Länkar för att dela på sociala medier. Instagram och TikTok saknar dela-länkar,
+// där fungerar "Skicka länken" (telefonens egen dela-meny) i stället.
+export function socialLinks(link, text) {
+  const u = encodeURIComponent(link);
+  const t = encodeURIComponent(text);
+  const tl = encodeURIComponent(text + ' ' + link);
+  const mobile = /iphone|ipad|android/i.test(navigator.userAgent || '');
+  return [
+    ['Facebook', '#1877F2', `https://www.facebook.com/sharer/sharer.php?u=${u}`],
+    ['WhatsApp', '#25D366', `https://wa.me/?text=${tl}`],
+    ...(mobile ? [['Messenger', '#0084FF', `fb-messenger://share/?link=${u}`]] : []),
+    ['X', '#1B1D1C', `https://twitter.com/intent/tweet?text=${t}&url=${u}`],
+    ['LinkedIn', '#0A66C2', `https://www.linkedin.com/sharing/share-offsite/?url=${u}`],
+    ['E-post', '#7B5EA7', `mailto:?subject=${encodeURIComponent('Följ med på Viktresan')}&body=${tl}`]
+  ];
+}
+
+export const socialButtons = (link, text) => `<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
+  ${socialLinks(link, text).map(([name, color, href]) => `<a href="${href}" target="_blank" rel="noopener" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 4px;border-radius:16px;border:1px solid var(--field-line);background:#fff;text-decoration:none;color:var(--ink);font-size:13px;font-weight:600">
+    <span style="width:36px;height:36px;border-radius:18px;background:${color};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px">${name === 'E-post' ? '@' : name[0]}</span>${name}</a>`).join('')}
+</div>`;
+
 export function openInviteFriend(ctx) {
   const p = ctx.state.profile || {};
   const link = inviteLink(p.username);
@@ -35,6 +57,9 @@ export function openInviteFriend(ctx) {
     ${canShare ? `<button class="btn primary block" data-share>${icon('send', 20)}Skicka länken</button>` : ''}
     <a class="btn ${canShare ? 'outline' : 'primary'} block" href="sms:?&body=${encodeURIComponent(text + ' ' + link)}">${icon('comment', 20)}Skicka som sms</a>
     <button class="btn outline block" data-copy>${icon('copy', 20)}Kopiera länken</button>
+    <span style="font-size:14px;font-weight:600;margin-top:4px">Dela på sociala medier</span>
+    ${socialButtons(link, text)}
+    <p class="small muted" style="margin:0">Instagram eller TikTok? Tryck på <b>Skicka länken</b> och välj appen där.</p>
     <button class="btn ghost block" data-close>Stäng</button>`, 'Bjud in en vän');
   s.el.querySelector('[data-share]')?.addEventListener('click', async () => {
     try { await navigator.share({ title: 'Viktresan', text, url: link }); } catch { /* avbrutet */ }

@@ -1,6 +1,7 @@
 // Startsida för den som inte är inloggad: vad är Viktresan?
 import { icon } from '../ui.js';
-import { COMPANY, CONTACT } from '../brand.js';
+import { COMPANY, CONTACT, SITE } from '../brand.js';
+import { socialButtons } from '../invite.js';
 
 // Små bilder av appen, ritade med kod.
 const phone = (inner, tilt = 0) => `<div aria-hidden="true" style="width:100%;max-width:260px;margin:0 auto;border-radius:34px;background:#1B1D1C;padding:8px;box-shadow:0 18px 40px rgba(62,42,92,.25);transform:rotate(${tilt}deg)">
@@ -117,6 +118,11 @@ export async function landingView(el) {
       <h2 style="font-size:24px">Redo att börja?</h2>
       <p class="muted" style="font-size:16px">Det är gratis och tar en minut.</p>
       ${cta(false)}
+    </section>
+
+    <section class="stack-lg">
+      <h2 style="font-size:20px">Känner du någon som vill följa med?</h2>
+      ${socialButtons(SITE, 'Viktresan – en gratis app för att gå ner i vikt tillsammans 💜')}
     </section>
 
     <footer class="stack" style="gap:6px;text-align:center;font-size:13px;color:var(--muted);padding-bottom:12px">
