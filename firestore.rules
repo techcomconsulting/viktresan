@@ -179,6 +179,41 @@ service cloud.firestore {
       allow update: if false;
     }
 
+    // Utmaningar: tävla i procent. Bara deltagare och inbjudna ser utmaningen.
+    function chal(cid) { return get(/databases/$(database)/documents/challenges/$(cid)).data; }
+    match /challenges/{cid} {
+      allow read: if signedIn() && (me() in resource.data.members || me() in resource.data.invited);
+      allow create: if signedIn()
+        && request.resource.data.owner == me()
+        && request.resource.data.members == [me()]
+        && request.resource.data.invited is list
+        && request.resource.data.invited.size() <= 30
+        && request.resource.data.title is string && request.resource.data.title.size() <= 60;
+      allow update: if signedIn() && (
+        resource.data.owner == me()
+        // Gå med: flytta sig själv från inbjudna till deltagare.
+        || (me() in resource.data.invited
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members', 'invited', 'names'])
+          && !(me() in request.resource.data.invited)
+          && request.resource.data.invited.size() == resource.data.invited.size() - 1
+          && (request.resource.data.members.size() == resource.data.members.size()
+            || (me() in request.resource.data.members && request.resource.data.members.size() == resource.data.members.size() + 1)))
+        // Lämna: ta bort sig själv från deltagarna.
+        || (me() in resource.data.members
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members'])
+          && !(me() in request.resource.data.members)
+          && request.resource.data.members.size() == resource.data.members.size() - 1)
+      );
+      allow delete: if signedIn() && resource.data.owner == me();
+      match /scores/{uid} {
+        allow read: if signedIn() && me() in chal(cid).members;
+        allow write: if signedIn() && me() == uid && me() in chal(cid).members
+          && request.resource.data.keys().hasOnly(['pct', 'name', 'updated'])
+          && request.resource.data.pct is number;
+        allow delete: if signedIn() && (me() == uid || chal(cid).owner == me());
+      }
+    }
+
     // Delningar mellan två personer. Id = ägare_mottagare.
     match /shares/{id} {
       allow read: if signedIn()

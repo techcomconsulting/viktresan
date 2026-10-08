@@ -5,6 +5,10 @@ import { installBanner, wireInstallBanner } from '../install.js';
 import { loadDay, dayTotals } from '../food.js';
 import { maybeShowNews } from './kost.js';
 import { isoDay } from '../ui.js';
+import { forecast } from '../milestones.js';
+import { badgesCard, checkNewBadges } from './badges.js';
+import { syncMyScores } from '../challenges.js';
+import { challengeCard } from './challenges.js';
 import { esc, fmt1, signed, icon, bmi, bmiScale, dDay, dShort, round1, avatar } from '../ui.js';
 
 export function progressInfo(start, goal, current) {
@@ -41,6 +45,22 @@ function latestPost(p, card) {
     ${icon('right', 18, 2)}</a>`;
 }
 
+const MONL = ['januari', 'februari', 'mars', 'april', 'maj', 'juni', 'juli', 'augusti', 'september', 'oktober', 'november', 'december'];
+function forecastLine(f) {
+  if (!f) return '';
+  const box = (html) => `<div class="row small" style="gap:8px;padding:10px 12px;border-radius:12px;background:var(--accent-soft);color:var(--accent-ink);align-items:flex-start"><span style="font-size:16px">🔮</span><span>${html}</span></div>`;
+  const rate = f.perWeek != null ? `${f.perWeek < 0 ? '−' : '+'}${fmt1(Math.abs(f.perWeek))} kg/vecka` : '';
+  if (f.status === 'ok') {
+    const d = f.date;
+    const when = `${d.getDate()} ${MONL[d.getMonth()]}${d.getFullYear() !== new Date().getFullYear() ? ' ' + d.getFullYear() : ''}`;
+    return box(`<b>Prognos:</b> i den här takten når du målet ungefär <b>${when}</b>. <span style="opacity:.75">(${rate} senaste veckorna)</span>`);
+  }
+  if (f.status === 'few') return box('<b>Prognos:</b> väg dig några gånger till under två veckor, så räknar appen ut när du når målet.');
+  if (f.status === 'flat') return box(`<b>Prognos:</b> vikten står still just nu (${rate}). Det är helt normalt – ge det lite tid.`);
+  if (f.status === 'far') return box(`<b>Prognos:</b> i den här takten tar det mer än tre år. Små steg räknas också! (${rate})`);
+  return '';
+}
+
 export async function overviewView(el, ctx) {
   const { state } = ctx;
   const uid = state.user.uid;
@@ -54,7 +74,9 @@ export async function overviewView(el, ctx) {
       <span style="font-size:17px;font-weight:700" class="num">${food.length ? `${Math.round(FT.kcal).toLocaleString('sv-SE')}${kGoal ? ' av ' + kGoal.toLocaleString('sv-SE') : ''} kcal` : 'Inget registrerat än'}</span>
       ${food.length ? `<span class="small muted">${fmt1(FT.p)} g protein</span>` : ''}</span>
     ${icon('right', 18, 2)}</a>`;
-  setTimeout(() => maybeShowNews(ctx), 600);
+  setTimeout(async () => { if (!(await checkNewBadges(ctx, entries).catch(() => false))) maybeShowNews(ctx); }, 600);
+  const chList = await syncMyScores(entries, p.firstName).catch(() => []);
+  const chCard = await challengeCard(chList, uid).catch(() => '');
   const latest = feed[0] || null;
   const latestCard = latest ? await getCard(latest.owner) : null;
   const wEntries = withWeight(entries);
@@ -108,6 +130,7 @@ export async function overviewView(el, ctx) {
         </div>
         <div class="between small muted"><span>${fmt1(Math.max(0, pr.done))} av ${fmt1(pr.total)} kg</span><span style="font-weight:600;color:var(--ink)">${fmt1(pr.left)} kg kvar</span></div>
         ${pr.next ? `<div class="small">Nästa delmål: ${Math.round(pr.next.m * 100)} % vid ${fmt1(pr.next.weight)} kg</div>` : '<div class="small"><b>Du har nått ditt mål!</b></div>'}
+        ${forecastLine(forecast(entries, p.goalWeight))}
       </div>` : ''}
     </section>
     <div class="banner soft">${motivation(entries, start)}</div>
@@ -123,7 +146,9 @@ export async function overviewView(el, ctx) {
         <span class="small muted">${start ? signed((total / start) * 100, '%') : ''} sedan ${esc(dShort(wEntries[0].at))}</span>
       </a>
     </div>
+    ${chCard}
     ${kostCard}
+    ${badgesCard(entries, p)}
     <a class="btn outline block" href="#/historik">${icon('chart', 20)}Historik och grafer</a>
     ${latest ? latestPost(latest, latestCard) : ''}
     ${installBanner()}

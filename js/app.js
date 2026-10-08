@@ -20,6 +20,8 @@ import { adminView } from './views/admin.js';
 import { tipsView } from './views/tips.js';
 import { bloodView } from './views/blood.js';
 import { reportView, publicReportView } from './views/report.js';
+import { badgesView } from './views/badges.js';
+import { challengesView, challengeView } from './views/challenges.js';
 
 const root = document.getElementById('app');
 const nav = document.getElementById('nav');
@@ -59,6 +61,9 @@ const routes = [
   [/^\/tips$/, tipsView, 'me'],
   [/^\/blodvarden$/, bloodView, 'me'],
   [/^\/rapport$/, reportView, 'me'],
+  [/^\/marken$/, badgesView, 'me'],
+  [/^\/utmaningar$/, challengesView, 'share'],
+  [/^\/utmaning\/([^/]+)$/, challengeView, 'share'],
   [/^\/r\/([a-f0-9]{48})$/, publicReportView, null]
 ];
 

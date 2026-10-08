@@ -1,7 +1,9 @@
 // Ny mätning och resultatet efteråt.
 import { tipLink } from '../tips.js';
+import { checkNewBadges } from './badges.js';
+import { syncMyScores } from '../challenges.js';
 import { loadEntries, addEntry, METRICS, createPost, notify, addPhoto, loadPeople, loadGroups, lastValues } from '../data.js';
-import { esc, fmt1, signed, parseNum, icon, dDay, tHM, dLong, toast, busy, openSheet, errorText, resizeImage, round1 } from '../ui.js';
+import { esc, fmt1, signed, parseNum, icon, dDay, tHM, dLong, toast, busy, openSheet, errorText, resizeImage, round1, confetti } from '../ui.js';
 import { progressInfo } from './overview.js';
 
 export async function measureView(el, ctx) {
@@ -144,7 +146,15 @@ export async function resultView(el, ctx) {
 
   const shareBtn = el.querySelector('[data-share]');
   if (shareBtn) shareBtn.addEventListener('click', () => openPostSheet(ctx, entry, prev, start));
-  if (first) openPhotoPrompt(ctx, entry);
+  if (first) { openPhotoPrompt(ctx, entry); return; }
+  // Nya märken? Firande med konfetti. Uppdatera också utmaningar.
+  setTimeout(async () => {
+    const all = await loadEntries(state.user.uid).catch(() => null);
+    if (!all) return;
+    syncMyScores(all, state.profile.firstName).catch(() => {});
+    const shown = await checkNewBadges(ctx, all).catch(() => false);
+    if (!shown && milestone) confetti();
+  }, 500);
 }
 
 function openPhotoPrompt(ctx, entry) {

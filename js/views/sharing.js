@@ -157,6 +157,7 @@ export async function feedView(el, ctx) {
 
   el.innerHTML = `<div class="screen">
     <div class="between"><h1>Flöde</h1><a class="btn outline sm" href="#/delning">${icon('users', 18)}Hantera delning</a></div>
+    <a class="card row" href="#/utmaningar" style="text-decoration:none;color:inherit;gap:12px;padding:12px 16px"><span style="font-size:26px">🏆</span><span class="grow stack" style="gap:1px"><b>Utmaningar</b><span class="small muted">Tävla i procent med familj och vänner</span></span>${icon('right', 18, 2)}</a>
     ${incoming.length ? `<a class="banner pink row" href="#/delning" style="text-decoration:none">${icon('bell', 20)}<span class="grow"><b>${esc(incoming.map((s) => s.ownerName).join(', '))}</b> vill dela med dig</span>${icon('right', 18, 2)}</a>` : ''}
     <button class="btn primary block" data-newpost>${icon('plus', 20, 2.2)}Nytt inlägg</button>
     ${all.length ? all.map((p) => postCard(p, p.owner === me ? myName : nameOf(p), p.owner === me ? state.profile.avatar : cards[p.owner]?.avatar, me)).join('')

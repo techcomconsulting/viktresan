@@ -716,6 +716,10 @@ const NEWS = [
     ['info', 'En snygg <b>sammanfattning</b> av vikt, BMI, mått och blodvärden'], ['copy', 'Spara som <b>PDF</b> och skicka eller skriv ut'],
     ['send', 'Eller skicka en <b>länk</b> till läkaren – inget konto behövs'], ['lock', 'Länken <b>slutar gälla</b> själv. Du kan stänga av den när du vill']
   ], note: 'Du hittar det under Profil → Rapport till vården.' },
+  { id: 'vt-news-marken', title: 'Märken, prognos och utmaningar!', go: '/utmaningar', rows: [
+    ['sparkle', '<b>Märken</b> och konfetti när du klarar ett delmål 🎉'], ['chart', '<b>Prognos:</b> när når du ditt mål?'],
+    ['users', '<b>Utmana</b> familj och vänner – vem går ner flest procent?'], ['lock', 'I utmaningar syns bara <b>procent</b>, aldrig kilo']
+  ], note: 'Märken och utmaningar finns under Profil. Prognosen syns på Översikt.' },
   { id: 'vt-news-bjud', title: 'Bjud in en vän!', go: '/profil', rows: [
     ['send', 'Skicka en <b>länk</b> via sms eller Messenger'], ['users', 'Det är lättare att gå ner i vikt <b>tillsammans</b>'],
     ['bell', 'Du får en <b>notis</b> när din vän har gått med'], ['lock', 'Ni väljer själva vad ni <b>delar</b>']

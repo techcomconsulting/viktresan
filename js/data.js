@@ -611,6 +611,19 @@ export async function deleteEverything(password) {
   const shares = await loadShares(uid);
   [...shares.out, ...shares.in].forEach((s) => refs.push(doc(db, 'shares', s.id)));
   (await getDocs(query(collection(db, 'reports'), where('owner', '==', uid)))).forEach((d) => refs.push(d.ref));
+  // Utmaningar: ta bort egna, lämna andras.
+  try {
+    const ch = collection(db, 'challenges');
+    for (const d of (await getDocs(query(ch, where('members', 'array-contains', uid)))).docs) {
+      const c = d.data();
+      try { await deleteDoc(doc(db, 'challenges', d.id, 'scores', uid)); } catch { /* ok */ }
+      if (c.owner === uid) await deleteDoc(d.ref);
+      else await updateDoc(d.ref, { members: c.members.filter((u) => u !== uid) });
+    }
+    for (const d of (await getDocs(query(ch, where('invited', 'array-contains', uid)))).docs) {
+      await updateDoc(d.ref, { invited: d.data().invited.filter((u) => u !== uid) });
+    }
+  } catch { /* fortsätt ändå */ }
   await deleteAll(refs);
   await uncount(uid);
   const last = [];

@@ -234,3 +234,40 @@ export function errorText(e) {
   if (/referer|referrer|api-key|api_key/i.test(code)) return 'Firebase-nyckeln godkänner inte den här adressen (' + code + ').';
   return map[code] || `Något gick fel. Försök igen. (${String(code).slice(0, 60)})`;
 }
+
+// Konfetti över hela skärmen, t.ex. när man klarar ett delmål.
+export function confetti(ms = 3200) {
+  try {
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const c = document.createElement('canvas');
+    c.setAttribute('aria-hidden', 'true');
+    c.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:9999';
+    document.body.appendChild(c);
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const W = c.width = innerWidth * dpr, H = c.height = innerHeight * dpr;
+    const g = c.getContext('2d');
+    const colors = ['#7B5EA7', '#C94C7E', '#F2C14E', '#2E7A5C', '#5DA9E9', '#F7A1C4', '#B79CE0'];
+    const n = reduce ? 40 : 170;
+    const parts = Array.from({ length: n }, (_, i) => ({
+      x: W / 2 + (Math.random() - 0.5) * W * 0.3, y: H * 0.35 + (Math.random() - 0.5) * 40 * dpr,
+      vx: (Math.random() - 0.5) * 16 * dpr, vy: (-Math.random() * 15 - 5) * dpr,
+      w: (6 + Math.random() * 6) * dpr, h: (8 + Math.random() * 10) * dpr,
+      r: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.3, color: colors[i % colors.length], round: Math.random() < 0.25
+    }));
+    const t0 = performance.now();
+    const step = (t) => {
+      const age = t - t0;
+      g.clearRect(0, 0, W, H);
+      g.globalAlpha = age > ms - 700 ? Math.max(0, (ms - age) / 700) : 1;
+      for (const p of parts) {
+        p.vy += 0.35 * dpr; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+        g.save(); g.translate(p.x, p.y); g.rotate(p.r); g.fillStyle = p.color;
+        if (p.round) { g.beginPath(); g.arc(0, 0, p.w / 2, 0, Math.PI * 2); g.fill(); }
+        else g.fillRect(-p.w / 2, -p.h / 2, p.w, p.h * Math.abs(Math.cos(p.r * 2)) + 2);
+        g.restore();
+      }
+      if (age < ms) requestAnimationFrame(step); else c.remove();
+    };
+    requestAnimationFrame(step);
+  } catch { /* ingen konfetti, inget problem */ }
+}

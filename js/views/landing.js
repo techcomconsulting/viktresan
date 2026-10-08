@@ -43,6 +43,9 @@ const FEATURES = [
     mini(`<div class="row" style="gap:10px"><span style="width:34px;height:34px;border-radius:10px;background:#EAF4EE;color:#1F5A41;display:flex;align-items:center;justify-content:center">${icon('run', 18, 2)}</span><span class="grow"><b>Promenad</b><br><span class="small muted">45 min</span></span><b style="color:#2E7A5C">+223</b></div>`)],
   ['Peppa varandra', 'Dela med familj och vänner. Skriv inlägg, kommentera och ge hjärtan.',
     mini(`<div class="small" style="line-height:1.4"><b>Anna</b> · nytt inlägg<br>Ner 1 % den här veckan! 🎉</div><div class="row" style="gap:6px;margin-top:8px;font-size:15px">❤️ 💪 👏 <span class="small muted">3 kommentarer</span></div>`)],
+  ['Märken och utmaningar', 'Få märken och konfetti när du klarar ett delmål. Utmana familjen – vem går ner flest procent? Appen visar också när du når ditt mål.',
+    mini(`<div class="row" style="gap:8px;font-size:26px;justify-content:center">🌱 💪 ⭐ 📏 🔥</div>
+      <div class="stack" style="gap:4px;margin-top:8px">${[['🥇', 'Anna', '−4,1 %'], ['🥈', 'Martin', '−3,6 %'], ['🥉', 'Bo', '−2,2 %']].map(([m, n, v]) => `<div class="between" style="font-size:14px"><span>${m} ${n}</span><b style="color:var(--accent)">${v}</b></div>`).join('')}</div>`)],
   ['Blodvärden och blodtryck', 'Skriv in blodsocker, kolesterol, blodtryck och puls. Se hur värdena förbättras när du går ner i vikt.',
     mini(`<div class="between" style="align-items:baseline"><span class="small muted">Långtidssocker</span><span class="chip" style="background:#E6F2EC;color:#1F5A41;font-size:11px">Inom normal</span></div>
       <div style="font-size:24px;font-weight:700">40 <span class="small muted">mmol/mol</span></div>
