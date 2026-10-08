@@ -19,6 +19,7 @@ import { landingView } from './views/landing.js';
 import { adminView } from './views/admin.js';
 import { tipsView } from './views/tips.js';
 import { bloodView } from './views/blood.js';
+import { reportView, publicReportView } from './views/report.js';
 
 const root = document.getElementById('app');
 const nav = document.getElementById('nav');
@@ -56,7 +57,9 @@ const routes = [
   [/^\/notiser$/, notificationsView, 'home'],
   [/^\/admin$/, adminView, null],
   [/^\/tips$/, tipsView, 'me'],
-  [/^\/blodvarden$/, bloodView, 'me']
+  [/^\/blodvarden$/, bloodView, 'me'],
+  [/^\/rapport$/, reportView, 'me'],
+  [/^\/r\/([a-f0-9]{48})$/, publicReportView, null]
 ];
 
 export const ctx = {
@@ -114,7 +117,7 @@ export function updateBadges() {
 let routing = 0;
 async function route() {
   const path = (location.hash.replace(/^#/, '') || '/').split('?')[0];
-  const open = OPEN.includes(path);
+  const open = OPEN.includes(path) || /^\/r\/[a-f0-9]{48}$/.test(path);
   if (!state.user && !PUBLIC.includes(path) && !open) { location.hash = '#/valkommen'; return; }
   if (state.user && PUBLIC.includes(path)) { location.hash = '#/'; return; }
   // Villkor och samtycke måste vara godkända innan man använder appen.

@@ -610,6 +610,7 @@ export async function deleteEverything(password) {
   (await getDocs(collection(db, 'notifications', uid, 'items'))).forEach((d) => refs.push(d.ref));
   const shares = await loadShares(uid);
   [...shares.out, ...shares.in].forEach((s) => refs.push(doc(db, 'shares', s.id)));
+  (await getDocs(query(collection(db, 'reports'), where('owner', '==', uid)))).forEach((d) => refs.push(d.ref));
   await deleteAll(refs);
   await uncount(uid);
   const last = [];

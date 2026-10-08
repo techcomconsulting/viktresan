@@ -83,6 +83,7 @@ export async function profileView(el, ctx) {
           <a class="list-row" href="#/bilder"><span style="color:var(--accent)">${icon('camera')}</span><span class="grow title" style="font-weight:600">Bilder</span>${icon('right', 18, 2)}</a>
           <a class="list-row" href="#/behandling"><span style="color:var(--accent)">${icon('pill')}</span><span class="grow title" style="font-weight:600">Behandling</span>${icon('right', 18, 2)}</a>
           <a class="list-row" href="#/blodvarden"><span style="color:var(--pink)">${icon('heart')}</span><span class="grow title" style="font-weight:600">Blodvärden</span>${icon('right', 18, 2)}</a>
+          <a class="list-row" href="#/rapport"><span style="color:var(--accent)">${icon('info')}</span><span class="grow stack" style="gap:2px"><span class="title" style="font-weight:600">Rapport till vården</span><span class="sub">PDF eller länk till läkaren</span></span>${icon('right', 18, 2)}</a>
           <a class="list-row" href="#/tips"><span style="color:var(--accent)">${icon('sparkle')}</span><span class="grow title" style="font-weight:600">Tips och prylar</span>${icon('right', 18, 2)}</a>
           <a class="list-row" href="#/notiser"><span style="color:var(--accent)">${icon('bell')}</span><span class="grow title" style="font-weight:600">Notiser</span><span class="chip warn js-unread hidden"></span>${icon('right', 18, 2)}</a>
         </div>

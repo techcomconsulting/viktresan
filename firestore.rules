@@ -164,6 +164,21 @@ service cloud.firestore {
       }
     }
 
+    // Rapport till vården: en tillfällig länk som läkaren kan öppna utan konto.
+    // Id:t är en lång slumpad nyckel. Ingen kan lista andras rapporter.
+    match /reports/{token} {
+      allow get: if resource.data.expires > request.time
+        || (signedIn() && resource.data.owner == me());
+      allow list: if signedIn() && resource.data.owner == me();
+      allow create: if signedIn()
+        && token.size() >= 40
+        && request.resource.data.owner == me()
+        && request.resource.data.expires is timestamp
+        && request.resource.data.expires < request.time + duration.value(31, 'd');
+      allow delete: if signedIn() && resource.data.owner == me();
+      allow update: if false;
+    }
+
     // Delningar mellan två personer. Id = ägare_mottagare.
     match /shares/{id} {
       allow read: if signedIn()

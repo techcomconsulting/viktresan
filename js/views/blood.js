@@ -76,7 +76,8 @@ export async function bloodView(el, ctx) {
     el.innerHTML = `<div class="screen">
       ${backLink('#/profil', 'Profil')}
       <div class="between"><h1>Blodvärden</h1></div>
-      <button class="btn primary block" data-add>${icon('plus', 20, 2.2)}Lägg till värden</button>
+      <div class="btn-row"><button class="btn primary" data-add>${icon('plus', 20, 2.2)}Lägg till</button>
+        <a class="btn outline" href="#/rapport">${icon('send', 18)}Till vården</a></div>
       ${list.length ? bloodCards(list) : `<div class="card stack" style="gap:10px;text-align:center;padding:24px">
         <span style="font-size:36px">🩸</span>
         <b style="font-size:17px">Inga värden än</b>
