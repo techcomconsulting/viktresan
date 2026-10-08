@@ -381,7 +381,8 @@ export const ACTIVITIES = [
   ['walk', 'Promenad', 3.5], ['brisk', 'Rask promenad', 4.3], ['run', 'Löpning', 9.8], ['jog', 'Joggning', 7],
   ['bike', 'Cykling', 7.5], ['gym', 'Styrketräning', 5], ['swim', 'Simning', 6], ['yoga', 'Yoga', 2.5],
   ['dance', 'Dans', 5], ['garden', 'Trädgård', 4], ['clean', 'Städning', 3.3], ['ski', 'Längdskidor', 9],
-  ['padel', 'Padel', 6], ['football', 'Fotboll', 7], ['hike', 'Vandring', 6], ['class', 'Gruppträning', 6.5]
+  ['padel', 'Padel', 6], ['football', 'Fotboll', 7], ['hike', 'Vandring', 6], ['class', 'Gruppträning', 6.5],
+  ['gymnastics', 'Gymnastik', 3.8], ['rollerski', 'Rullskidor', 7.5], ['skate', 'Skridskor', 5.5], ['sex', 'Samlag', 1.8]
 ];
 export const activityKcal = (key, mins, kg) => {
   const a = ACTIVITIES.find((x) => x[0] === key);
