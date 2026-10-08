@@ -1,0 +1,32 @@
+name: Hämta jsPDF
+
+# Laddar ner jsPDF (för att skapa PDF i appen) och lägger den i js/vendor.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/vendor.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Hämta filer
+        run: |
+          mkdir -p js/vendor
+          curl -fsSL https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js -o js/vendor/jspdf.umd.min.js
+          curl -fsSL https://cdn.jsdelivr.net/npm/jspdf@2.5.2/LICENSE -o js/vendor/jspdf-LICENSE.txt
+          ls -la js/vendor
+      - name: Spara
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add js/vendor
+          if git diff --cached --quiet; then echo "Inget nytt"; exit 0; fi
+          git commit -m "Lägg till jsPDF"
+          git push
