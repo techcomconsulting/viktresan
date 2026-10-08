@@ -5,7 +5,7 @@ import { icon, openSheet, toast, busy, errorText } from '../ui.js';
 
 import { COMPANY, CONTACT } from '../brand.js';
 export { COMPANY, CONTACT };
-const UPDATED = '3 oktober 2026';
+const UPDATED = '8 oktober 2026';
 
 const sec = (title, body) => `<section class="card stack" style="gap:8px"><h2 style="font-size:18px">${title}</h2>${body}</section>`;
 const ul = (items) => `<ul style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:15px;line-height:1.45">${items.map((t) => `<li>${t}</li>`).join('')}</ul>`;
@@ -73,7 +73,7 @@ export async function privacyView(el, ctx) {
     ${sec('Vad vi sparar', ul([
       '<b>Konto:</b> förnamn, användarnamn, e-post och profilbild.',
       '<b>Om dig:</b> längd, födelseår och kön.',
-      '<b>Hälsa:</b> vikt, mått, bilder, behandling, kost, vatten och träning.',
+      '<b>Hälsa:</b> vikt, mått, bilder, blodvärden (blodsocker, kolesterol, blodtryck och puls), behandling, kost, vatten och träning.',
       '<b>Socialt:</b> inlägg, kommentarer, reaktioner, grupper och vem du delar med.'
     ]))}
     ${sec('Hälsouppgifter', p('Vikt, mått, kost och behandling är <b>känsliga uppgifter</b> enligt GDPR. Vi sparar dem bara för att du har <b>samtyckt</b> till det (artikel 9.2 a). Kontot i övrigt behövs för att appen ska fungera (artikel 6.1 b).'))}
@@ -152,7 +152,7 @@ export const consentBoxes = () => `
     <label class="check" style="align-items:flex-start"><input type="checkbox" name="ct" style="flex-shrink:0;margin-top:2px">
       <span>Jag är minst 18 år och godkänner <a href="#/villkor">användarvillkoren</a>.</span></label>
     <label class="check" style="align-items:flex-start"><input type="checkbox" name="ch" style="flex-shrink:0;margin-top:2px">
-      <span>Jag samtycker till att mina <b>hälsouppgifter</b> (vikt, mått, kost, behandling och bilder) sparas. Läs <a href="#/integritet">integritetspolicyn</a>.</span></label>
+      <span>Jag samtycker till att mina <b>hälsouppgifter</b> (vikt, mått, blodvärden, kost, behandling och bilder) sparas. Läs <a href="#/integritet">integritetspolicyn</a>.</span></label>
   </div>`;
 export const consentChecked = (root) => root.querySelector('[name=ct]').checked && root.querySelector('[name=ch]').checked;
 
@@ -162,7 +162,7 @@ export async function consentView(el, ctx) {
   el.innerHTML = `<div class="screen no-nav">
     <img src="icons/icon-192.png" alt="" width="56" height="56" style="border-radius:16px">
     <h1>${again ? 'Nya villkor' : 'Innan du fortsätter'}</h1>
-    <p style="font-size:16px;line-height:1.45">${again ? 'Villkoren har ändrats. Läs och godkänn för att fortsätta.' : 'Viktresan sparar uppgifter om din hälsa. Därför behöver vi ditt godkännande.'}</p>
+    <p style="font-size:16px;line-height:1.45">${again ? 'Nu kan du spara <b>blodvärden</b> i appen. Därför har vi uppdaterat texten om hälsouppgifter. Läs och godkänn för att fortsätta.' : 'Viktresan sparar uppgifter om din hälsa. Därför behöver vi ditt godkännande.'}</p>
     <section class="card stack" style="gap:10px;font-size:15px">
       <div class="row">${icon('check', 20, 2.2)}<span>Det du sparar är <b>privat</b>.</span></div>
       <div class="row">${icon('check', 20, 2.2)}<span>Du väljer själv vad du <b>delar</b>.</span></div>

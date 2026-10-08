@@ -12,6 +12,8 @@ import { buildTimeline, photoImg } from './photos.js';
 import { treatmentList } from './treatment.js';
 import { openPostSheet } from './measure.js';
 import { openInviteFriend } from '../invite.js';
+import { loadBlood } from '../blood.js';
+import { bloodCards } from './blood.js';
 import { loadDayOf, dayTotals, MEALS } from '../food.js';
 import { isoDay } from '../ui.js';
 
@@ -274,7 +276,7 @@ export async function sharingView(el, ctx) {
     });
 
     const openInviteSheet = (person) => {
-      const perms = { weight: true, weightKg: false, measures: false, history: false, photos: false, posts: true, food: false, treatment: false };
+      const perms = { weight: true, weightKg: false, measures: false, history: false, photos: false, posts: true, food: false, blood: false, treatment: false };
       const range = { value: '3m' };
       const s = openSheet(`
         <div class="row">${avatar(person.firstName, person.avatar, 48)}<h2>Dela med ${esc(person.firstName)}?</h2></div>
@@ -355,6 +357,7 @@ export async function personView(el, ctx, owner) {
   const name = card?.firstName || share.ownerName;
   const kg = !!(P.weight && P.weightKg);
   let foodToday = null;
+  let bloodList = [];
   const [w, pw, ph, m, entries, photos, posts, treat] = await Promise.all([
     kg ? getSummary(owner, 'weight') : null,
     P.weight && !kg ? getSummary(owner, 'percent') : null,
@@ -364,8 +367,9 @@ export async function personView(el, ctx, owner) {
     P.photos ? loadPhotos(owner) : [],
     loadPostsOf(owner, me),
     P.treatment ? loadTreatments(owner) : [],
+    P.blood ? loadBlood(owner).catch(() => []) : [],
     P.food ? loadDayOf(owner, isoDay(new Date())) : null
-  ]).then((r) => { foodToday = r.pop(); return r; });
+  ]).then((r) => { foodToday = r.pop(); bloodList = r.pop(); return r; });
 
   const parts = [];
   if (pw) {
@@ -413,6 +417,7 @@ export async function personView(el, ctx, owner) {
       <div class="between small muted"><span>${esc(dShort(entries[0].at))}</span><span>${esc(dShort(entries[entries.length - 1].at))}</span></div></section>`);
     if (P.measures) parts.push(`<section class="card stack"><h2>Midja över tid</h2>${lineChart(entries.map((e) => e.waist).filter((x) => x != null), { h: 110, color: '#CF5F8C', fill: '#FCEEF4', label: 'Midja över tid' })}</section>`);
   }
+  if (bloodList.length) parts.push(`<section class="stack"><h2 style="font-size:20px">Blodvärden</h2>${bloodCards(bloodList)}</section>`);
   if (photos.length) {
     const kinds = [['face', 'Ansikte'], ['body', 'Helkropp']].filter(([k]) => photos.some((p) => p.kind === k));
     parts.push(...kinds.map(([k, l]) => {

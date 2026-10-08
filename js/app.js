@@ -18,6 +18,7 @@ import { termsView, privacyView, consentView } from './views/legal.js';
 import { landingView } from './views/landing.js';
 import { adminView } from './views/admin.js';
 import { tipsView } from './views/tips.js';
+import { bloodView } from './views/blood.js';
 
 const root = document.getElementById('app');
 const nav = document.getElementById('nav');
@@ -54,7 +55,8 @@ const routes = [
   [/^\/profil$/, profileView, 'me'],
   [/^\/notiser$/, notificationsView, 'home'],
   [/^\/admin$/, adminView, null],
-  [/^\/tips$/, tipsView, 'me']
+  [/^\/tips$/, tipsView, 'me'],
+  [/^\/blodvarden$/, bloodView, 'me']
 ];
 
 export const ctx = {
@@ -78,6 +80,8 @@ function openAddMenu() {
         <span class="grow stack" style="gap:2px"><span class="title">Lägg till mat</span><span class="sub">Skanna eller sök</span></span></a>
       <a class="list-row" href="#/kost/traning" data-close><span style="width:44px;height:44px;border-radius:14px;background:#EAF4EE;color:#1F5A41;display:flex;align-items:center;justify-content:center">${icon('run', 24)}</span>
         <span class="grow stack" style="gap:2px"><span class="title">Träning</span><span class="sub">Aktivitet eller kalorier från klockan</span></span></a>
+      <a class="list-row" href="#/blodvarden" data-close><span style="width:44px;height:44px;border-radius:14px;background:var(--pink-soft);color:var(--pink);display:flex;align-items:center;justify-content:center">${icon('heart', 24)}</span>
+        <span class="grow stack" style="gap:2px"><span class="title">Blodvärden</span><span class="sub">Blodsocker, kolesterol, blodtryck</span></span></a>
       <a class="list-row" href="#/kost/skanna" data-close><span style="width:44px;height:44px;border-radius:14px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center">${icon('scan', 24)}</span>
         <span class="grow stack" style="gap:2px"><span class="title">Skanna streckkod</span><span class="sub">Direkt till kameran</span></span></a>
     </div>

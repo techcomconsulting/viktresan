@@ -53,6 +53,7 @@ export const PERMS = [
   ['photos', 'Bilder', 'Dina före- och efterbilder'],
   ['posts', 'Inlägg', 'Framsteg du väljer att dela'],
   ['food', 'Kost', 'Mat, kalorier och vatten per dag'],
+  ['blood', 'Blodvärden', 'Blodsocker, kolesterol och blodtryck. Av som standard.'],
   ['treatment', 'Behandling och medicin', 'Känslig information. Av som standard.']
 ];
 
@@ -511,10 +512,10 @@ export async function markRead(items) {
 
 // Allt som sparas under en användare.
 const USER_COLS = ['weights', 'measures', 'summary', 'photos', 'treatments', 'goals', 'public', 'groups',
-  'foodlog', 'water', 'workouts', 'foodfav', 'savedmeals'];
+  'foodlog', 'water', 'workouts', 'foodfav', 'savedmeals', 'blood'];
 
 // Ändra siffran när villkoren ändras. Då får alla godkänna igen.
-export const TERMS_VERSION = 1;
+export const TERMS_VERSION = 2;
 
 export async function acceptTerms(uid) {
   await setDoc(userDoc(uid), { termsVersion: TERMS_VERSION, termsAcceptedAt: serverTimestamp(), healthConsent: true }, { merge: true });

@@ -708,6 +708,10 @@ const NEWS = [
     ['run', 'Välj <b>aktivitet och tid</b>, t.ex. promenad 30 min'], ['flag', 'Eller skriv in <b>kalorier från klockan</b>'],
     ['watch', 'Fungerar med <b>Fitbit, Samsung, Garmin</b> och andra klockor'], ['food', 'Tränar du får du <b>äta mer</b> samma dag']
   ], note: 'Du hittar det under Kost → Träning.' },
+  { id: 'vt-news-blod', title: 'Nu kan du spara blodvärden!', go: '/blodvarden', rows: [
+    ['heart', '<b>Blodsocker</b> och långtidssocker'], ['chart', '<b>Kolesterol</b> och blodfetter'],
+    ['run', '<b>Blodtryck</b> och vilopuls'], ['lock', 'Helt <b>privat</b>. Du väljer om någon får se']
+  ], note: 'Du hittar det under Profil och under Lägg till.' },
   { id: 'vt-news-bjud', title: 'Bjud in en vän!', go: '/profil', rows: [
     ['send', 'Skicka en <b>länk</b> via sms eller Messenger'], ['users', 'Det är lättare att gå ner i vikt <b>tillsammans</b>'],
     ['bell', 'Du får en <b>notis</b> när din vän har gått med'], ['lock', 'Ni väljer själva vad ni <b>delar</b>']

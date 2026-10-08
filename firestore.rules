@@ -79,6 +79,7 @@ service cloud.firestore {
       match /water/{id} { allow read: if shared(uid, 'food'); }
       match /workouts/{id} { allow read: if shared(uid, 'food'); }
       match /treatments/{id} { allow read: if shared(uid, 'treatment'); }
+      match /blood/{id} { allow read: if shared(uid, 'blood'); }
 
     }
 
