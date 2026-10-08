@@ -1,6 +1,13 @@
 // Rapport till vården: förhandsvisning, PDF och tillfälliga länkar.
 import { PERIODS, buildReport, renderReport, createReportLink, loadReportLinks, deleteReportLink, openReportLink, reportUrl } from '../report.js';
 import { esc, icon, backLink, openSheet, confirmSheet, toast, busy, errorText, dFull } from '../ui.js';
+import { reportPdf, offerPdf } from '../pdf.js';
+
+async function makePdf(btn, snap) {
+  await busy(btn, async () => {
+    try { const file = await reportPdf(snap); offerPdf(file, openSheet, toast); } catch (ex) { toast(ex.code === 'pdf-load' ? 'Kunde inte skapa PDF. Kontrollera internet.' : 'Kunde inte skapa PDF.'); }
+  });
+}
 
 export async function reportView(el, ctx) {
   const { state } = ctx;
@@ -19,7 +26,7 @@ export async function reportView(el, ctx) {
         <div class="stack" style="gap:6px"><span style="font-size:14px;font-weight:600">Vilken period?</span>
           <div class="pills" role="group" aria-label="Period">${PERIODS.map(([k, l]) => `<button type="button" data-p="${k}" aria-pressed="${k === period}">${l}</button>`).join('')}</div></div>
         <div class="btn-row">
-          <button class="btn outline" data-pdf>${icon('copy', 18)}PDF / skriv ut</button>
+          <button class="btn outline" data-pdf>${icon('copy', 18)}Skapa PDF</button>
           <button class="btn primary" data-link>${icon('send', 18)}Skapa länk</button>
         </div>
         ${active.length ? `<section class="stack"><h2>Aktiva länkar</h2><div class="card flush">
@@ -33,7 +40,7 @@ export async function reportView(el, ctx) {
     </div>`;
 
     el.querySelectorAll('[data-p]').forEach((b) => b.addEventListener('click', () => { period = b.dataset.p; draw(); }));
-    el.querySelector('[data-pdf]').addEventListener('click', () => window.print());
+    el.querySelector('[data-pdf]').addEventListener('click', (e) => makePdf(e.currentTarget, snap));
     el.querySelector('[data-link]').addEventListener('click', () => askLink());
     el.querySelectorAll('[data-show]').forEach((b) => b.addEventListener('click', () => showLink(b.dataset.show)));
     el.querySelectorAll('[data-off]').forEach((b) => b.addEventListener('click', async () => {
@@ -94,8 +101,9 @@ export async function publicReportView(el, ctx, token) {
   }
   el.innerHTML = `<div class="screen no-nav" style="max-width:860px">
     <div class="no-print between"><span class="small muted">Gäller till ${esc(dFull(r.expires))}</span>
-      <button class="btn outline sm" data-pdf>${icon('copy', 16)}Skriv ut / PDF</button></div>
+      <div class="row" style="gap:8px"><button class="btn outline sm" data-print>Skriv ut</button><button class="btn primary sm" data-pdf>${icon('copy', 16)}Ladda ner PDF</button></div></div>
     <div class="rp-wrap">${renderReport(r.data)}</div>
   </div>`;
-  el.querySelector('[data-pdf]').addEventListener('click', () => window.print());
+  el.querySelector('[data-print]').addEventListener('click', () => window.print());
+  el.querySelector('[data-pdf]').addEventListener('click', (e) => makePdf(e.currentTarget, r.data));
 }
