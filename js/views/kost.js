@@ -712,6 +712,10 @@ const NEWS = [
     ['heart', '<b>Blodsocker</b> och långtidssocker'], ['chart', '<b>Kolesterol</b> och blodfetter'],
     ['run', '<b>Blodtryck</b> och vilopuls'], ['lock', 'Helt <b>privat</b>. Du väljer om någon får se']
   ], note: 'Du hittar det under Profil och under Lägg till.' },
+  { id: 'vt-news-rapport', title: 'Rapport till vården!', go: '/rapport', rows: [
+    ['info', 'En snygg <b>sammanfattning</b> av vikt, BMI, mått och blodvärden'], ['copy', 'Spara som <b>PDF</b> och skicka eller skriv ut'],
+    ['send', 'Eller skicka en <b>länk</b> till läkaren – inget konto behövs'], ['lock', 'Länken <b>slutar gälla</b> själv. Du kan stänga av den när du vill']
+  ], note: 'Du hittar det under Profil → Rapport till vården.' },
   { id: 'vt-news-bjud', title: 'Bjud in en vän!', go: '/profil', rows: [
     ['send', 'Skicka en <b>länk</b> via sms eller Messenger'], ['users', 'Det är lättare att gå ner i vikt <b>tillsammans</b>'],
     ['bell', 'Du får en <b>notis</b> när din vän har gått med'], ['lock', 'Ni väljer själva vad ni <b>delar</b>']

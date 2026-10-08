@@ -10,7 +10,7 @@ const ld = [
   {
     '@context': 'https://schema.org', '@type': 'WebApplication', name: 'Viktresan', url: 'https://viktresan.online/',
     applicationCategory: 'HealthApplication', operatingSystem: 'iOS, Android, Windows, macOS', inLanguage: 'sv',
-    description: 'Gratis viktapp för hela familjen. Följ vikt, mått, kalorier och träning. Peppa varandra och välj själv vad du delar.',
+    description: 'Gratis viktapp för hela familjen. Följ vikt, mått, kalorier, träning och blodvärden. Peppa varandra och välj själv vad du delar.',
     offers: { '@type': 'Offer', price: '0', priceCurrency: 'SEK' },
     publisher: { '@type': 'Organization', name: 'Techcom Consulting AB' }
   },

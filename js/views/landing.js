@@ -43,6 +43,14 @@ const FEATURES = [
     mini(`<div class="row" style="gap:10px"><span style="width:34px;height:34px;border-radius:10px;background:#EAF4EE;color:#1F5A41;display:flex;align-items:center;justify-content:center">${icon('run', 18, 2)}</span><span class="grow"><b>Promenad</b><br><span class="small muted">45 min</span></span><b style="color:#2E7A5C">+223</b></div>`)],
   ['Peppa varandra', 'Dela med familj och vänner. Skriv inlägg, kommentera och ge hjärtan.',
     mini(`<div class="small" style="line-height:1.4"><b>Anna</b> · nytt inlägg<br>Ner 1 % den här veckan! 🎉</div><div class="row" style="gap:6px;margin-top:8px;font-size:15px">❤️ 💪 👏 <span class="small muted">3 kommentarer</span></div>`)],
+  ['Blodvärden och blodtryck', 'Skriv in blodsocker, kolesterol, blodtryck och puls. Se hur värdena förbättras när du går ner i vikt.',
+    mini(`<div class="between" style="align-items:baseline"><span class="small muted">Långtidssocker</span><span class="chip" style="background:#E6F2EC;color:#1F5A41;font-size:11px">Inom normal</span></div>
+      <div style="font-size:24px;font-weight:700">40 <span class="small muted">mmol/mol</span></div>
+      <svg viewBox="0 0 200 50" style="width:100%;height:auto;display:block" aria-hidden="true"><rect x="0" y="22" width="200" height="28" rx="6" fill="#E6F2EC"/><polyline points="8,8 100,20 192,34" fill="none" stroke="#7B5EA7" stroke-width="3" stroke-linecap="round"/><circle cx="192" cy="34" r="4.5" fill="#fff" stroke="#7B5EA7" stroke-width="3"/></svg>`)],
+  ['Rapport till vården', 'Gör en snygg sammanfattning till läkaren. Spara som PDF eller skicka en länk som slutar gälla av sig själv.',
+    mini(`<div class="stack" style="gap:6px"><span style="font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--accent)">HÄLSORAPPORT</span>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">${[['Vikt', '−10 kg'], ['BMI', '29,7'], ['Midja', '−12 cm']].map(([l, v]) => `<div style="background:var(--accent-soft);border-radius:8px;padding:6px"><div style="font-size:10px;color:var(--accent-ink)">${l}</div><b style="font-size:13px">${v}</b></div>`).join('')}</div>
+      <div class="row" style="gap:6px"><span class="chip neutral" style="font-size:11px">PDF</span><span class="chip neutral" style="font-size:11px">Länk i 7 dagar</span></div></div>`)],
   ['Bilder och behandling', 'Spara före- och efterbilder. Håll koll på mediciner och behandlingar.',
     mini(`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${['Före', 'Nu'].map((t) => `<div style="aspect-ratio:4/3;border-radius:10px;background:linear-gradient(160deg,var(--accent-soft),var(--pink-soft));display:flex;align-items:flex-end;padding:6px"><span class="chip neutral" style="font-size:11px;padding:3px 8px">${t}</span></div>`).join('')}</div>`)]
 ];
@@ -55,6 +63,7 @@ export const FAQ = [
   ['Fungerar det på Android?', 'Ja. Viktresan fungerar på iPhone, Android och dator. Du behöver inte ladda ner något från App Store eller Google Play.'],
   ['Hur lägger jag appen på hemskärmen?', '<b>iPhone:</b> öppna i Safari, tryck på dela-knappen och välj <b>Lägg till på hemskärmen</b>.<br><b>Android:</b> öppna i Chrome, tryck på menyn ⋮ och välj <b>Lägg till på startskärmen</b>.'],
   ['Kan jag radera allt?', 'Ja. Under Profil kan du ladda ner eller radera alla dina uppgifter. Då försvinner allt direkt.'],
+  ['Kan jag visa mina värden för läkaren?', 'Ja. Under <b>Rapport till vården</b> gör du en sammanfattning av vikt, BMI, mått och blodvärden. Spara den som PDF eller skicka en länk. Länken slutar gälla av sig själv och kan stängas av när du vill.'],
   ['Ersätter appen läkare eller dietist?', 'Nej. Kalorier och mål är uppskattningar. Prata med vården innan du gör stora förändringar.']
 ];
 
@@ -68,7 +77,7 @@ export async function landingView(el) {
       <div class="row" style="gap:10px"><img src="icons/icon-192.png" alt="" width="40" height="40" style="border-radius:12px"><b style="font-size:20px">Viktresan</b>
         <a href="#/login" class="btn ghost sm" style="margin-left:auto">Logga in</a></div>
       <h1 style="font-size:36px;line-height:1.08">Gå ner i vikt.<br><span style="color:var(--accent)">Tillsammans.</span></h1>
-      <p style="font-size:18px;line-height:1.45;color:var(--muted)">Följ din vikt, dina mått och din kost. Peppa varandra i familjen. Du väljer själv vad du delar.</p>
+      <p style="font-size:18px;line-height:1.45;color:var(--muted)">Följ vikt, mått, kost och blodvärden. Peppa varandra i familjen. Du väljer själv vad du delar.</p>
       ${cta(true)}
       <div class="row" style="gap:14px;flex-wrap:wrap;font-size:14px;color:var(--muted)">
         <span class="row" style="gap:4px">${icon('check', 16, 2.4)}Gratis</span>
