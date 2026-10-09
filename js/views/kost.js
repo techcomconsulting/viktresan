@@ -9,6 +9,7 @@ import {
 } from '../food.js';
 import { saveProfile, loadEntries, lastValues } from '../data.js';
 import { startScanner } from '../scanner.js';
+import { openInviteFriend } from '../invite.js';
 import { aiPhotoOn, shrinkImage, analyzeMeal, aiFood } from '../ai.js';
 import { esc, fmt1, icon, isoDay, dDay, openSheet, confirmSheet, toast, busy, errorText, parseNum, round1 } from '../ui.js';
 
@@ -823,7 +824,11 @@ const NEWS = [
   { id: 'vt-news-bjud', title: 'Bjud in en vän!', go: '/profil', rows: [
     ['send', 'Skicka en <b>länk</b> via sms eller Messenger'], ['users', 'Det är lättare att gå ner i vikt <b>tillsammans</b>'],
     ['bell', 'Du får en <b>notis</b> när din vän har gått med'], ['lock', 'Ni väljer själva vad ni <b>delar</b>']
-  ], note: 'Du hittar det under Profil.' }
+  ], note: 'Du hittar det under Profil.' },
+  { id: 'vt-tips-dela-1', chip: 'TIPS', title: 'Dela Viktresan med vänner!', invite: true, rows: [
+    ['send', 'Skicka appen till <b>vänner och familj</b>'], ['users', 'Det går lättare att gå ner i vikt <b>tillsammans</b>'],
+    ['sparkle', 'Appen är <b>gratis</b> att använda'], ['lock', 'Ni väljer själva vad ni <b>delar</b> med varandra']
+  ], note: 'Ju fler som använder appen, desto bättre kan vi göra den. Tack för hjälpen!' }
 ];
 
 // Nyheter som admin skriver på admin.viktresan.online (samlingen "announcements").
@@ -846,15 +851,16 @@ export async function maybeShowNews(ctx) {
   if (!n) return;
   try { localStorage.setItem(n.id, '1'); } catch { /* ok */ }
   const s = openSheet(`
-    <span class="chip warn" style="align-self:flex-start;font-size:13px;letter-spacing:.06em">${icon('sparkle', 14, 2)}NYHET</span>
+    <span class="chip warn" style="align-self:flex-start;font-size:13px;letter-spacing:.06em">${icon('sparkle', 14, 2)}${n.chip || 'NYHET'}</span>
     <h2 style="font-size:24px">${n.title}</h2>
     <div class="stack" style="gap:12px;font-size:16px">
       ${n.rows.map(([ic, t]) => `<div class="row">${ic === 'water' ? '<span style="font-size:22px;width:24px;text-align:center">💧</span>' : icon(ic, 24)}<span>${t}</span></div>`).join('')}
     </div>
     <p class="small muted">${n.note}</p>
-    ${n.go ? '<button class="btn primary block" data-try>Testa nu</button>' : ''}
-    <button class="btn ${n.go ? 'ghost' : 'primary'} block" data-close>${n.go ? 'Senare' : 'Okej!'}</button>`, 'Nyhet');
+    ${n.invite ? '<button class="btn primary block" data-share>Dela nu</button>' : n.go ? '<button class="btn primary block" data-try>Testa nu</button>' : ''}
+    <button class="btn ${n.go || n.invite ? 'ghost' : 'primary'} block" data-close>${n.go || n.invite ? 'Senare' : 'Okej!'}</button>`, 'Nyhet');
   s.el.querySelector('[data-try]')?.addEventListener('click', () => { s.close(); ctx.go(n.go); });
+  s.el.querySelector('[data-share]')?.addEventListener('click', () => { s.close(); openInviteFriend(ctx); });
 }
 
 // ---------- Lägg till träning ----------
