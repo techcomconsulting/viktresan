@@ -7,11 +7,14 @@
 import { db, collection, getDocs, doc, setDoc, serverTimestamp, increment } from './firebase.js';
 import { esc, icon } from './ui.js';
 
+// Standardkategorier. Admin kan ändra dem (sparas i tips/_cats).
 export const TIP_CATS = [
-  ['mata', 'Mäta', 'chart'],
-  ['trana', 'Träna', 'run'],
-  ['ata', 'Äta och dricka', 'food']
+  { id: 'mata', name: 'Mäta', emoji: '📏' },
+  { id: 'trana', name: 'Träna', emoji: '🏃' },
+  { id: 'ata', name: 'Äta och dricka', emoji: '🥗' }
 ];
+let cats = TIP_CATS;
+export const catsNow = () => cats;
 
 export const DEFAULT_TIPS = [
   { id: 'vag', cat: 'mata', title: 'Personvåg', why: 'Väg dig samma tid varje vecka, gärna på morgonen. En enkel digital våg räcker gott.', store: '', url: '' },
@@ -33,9 +36,12 @@ export const tipsNow = () => live;
 export async function loadTips() {
   try {
     const s = await getDocs(collection(db, 'tips'));
-    const saved = Object.fromEntries(s.docs.map((d) => [d.id, d.data()]));
+    const catDoc = s.docs.find((d) => d.id === '_cats');
+    if (catDoc && Array.isArray(catDoc.data().cats) && catDoc.data().cats.length) cats = catDoc.data().cats;
+    const docs = s.docs.filter((d) => !d.id.startsWith('_'));
+    const saved = Object.fromEntries(docs.map((d) => [d.id, d.data()]));
     const merged = DEFAULT_TIPS.map((t) => ({ ...t, visible: true, ...(saved[t.id] || {}), id: t.id }));
-    const extra = s.docs.filter((d) => !DEFAULT_TIPS.some((t) => t.id === d.id)).map((d) => ({ visible: true, ...d.data(), id: d.id }))
+    const extra = docs.filter((d) => !DEFAULT_TIPS.some((t) => t.id === d.id)).map((d) => ({ visible: true, ...d.data(), id: d.id }))
       .sort((a, b) => (a.created?.toMillis?.() || 0) - (b.created?.toMillis?.() || 0));
     live = [...merged, ...extra].filter((t) => !t.deleted);
   } catch { /* behåll det vi har */ }
@@ -57,6 +63,9 @@ export async function removeTip(id) {
 }
 
 export const tipById = (id) => live.find((t) => t.id === id);
+// Tips som användarna får se: bara de som har en länk och inte är dolda.
+export const isShown = (t) => !!(t && t.url && t.visible !== false);
+export const hasTips = () => live.some(isShown);
 
 // Räknar klick på en reklamlänk (bara antal, inte vem).
 export function recordTipClick(id) {
@@ -66,7 +75,7 @@ export function recordTipClick(id) {
 // Ett litet, diskret tips på rätt ställe i appen. Visas bara om länken finns.
 export function tipLink(id, text) {
   const t = tipById(id);
-  if (!t || !t.url || t.visible === false) return '';
+  if (!isShown(t)) return '';
   return `<a href="${esc(t.url)}" data-tip="${esc(t.id)}" target="_blank" rel="sponsored noopener" class="small" style="display:inline-flex;align-items:center;gap:6px;color:var(--muted);text-decoration:none">
     ${icon('sparkle', 14)}<span>${text} <span style="text-decoration:underline">${esc(t.title)}</span></span>
     <span class="chip neutral" style="font-size:10px;padding:2px 6px">Reklamlänk</span></a>`;

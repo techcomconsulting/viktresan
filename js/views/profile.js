@@ -5,6 +5,7 @@ import {
 } from '../data.js';
 import { openWipeSheet, downloadMyData } from './legal.js';
 import { openInviteFriend } from '../invite.js';
+import { hasTips } from '../tips.js';
 import {
   esc, fmt1, icon, avatar, openSheet, confirmSheet, toast, busy, errorText, parseNum, dShort, dFull, resizeImage, round1
 } from '../ui.js';
@@ -86,7 +87,7 @@ export async function profileView(el, ctx) {
           <a class="list-row" href="#/utmaningar"><span style="font-size:20px;width:24px;text-align:center">🏆</span><span class="grow title" style="font-weight:600">Utmaningar</span>${icon('right', 18, 2)}</a>
           <a class="list-row" href="#/blodvarden"><span style="color:var(--pink)">${icon('heart')}</span><span class="grow title" style="font-weight:600">Blodvärden</span>${icon('right', 18, 2)}</a>
           <a class="list-row" href="#/rapport"><span style="color:var(--accent)">${icon('info')}</span><span class="grow stack" style="gap:2px"><span class="title" style="font-weight:600">Rapport till vården</span><span class="sub">PDF eller länk till läkaren</span></span>${icon('right', 18, 2)}</a>
-          <a class="list-row" href="#/tips"><span style="color:var(--accent)">${icon('sparkle')}</span><span class="grow title" style="font-weight:600">Tips och prylar</span>${icon('right', 18, 2)}</a>
+          ${hasTips() ? `<a class="list-row" href="#/tips"><span style="color:var(--accent)">${icon('sparkle')}</span><span class="grow title" style="font-weight:600">Tips och prylar</span>${icon('right', 18, 2)}</a>` : ''}
           <a class="list-row" href="#/notiser"><span style="color:var(--accent)">${icon('bell')}</span><span class="grow title" style="font-weight:600">Notiser</span><span class="chip warn js-unread hidden"></span>${icon('right', 18, 2)}</a>
         </div>
       </section>
