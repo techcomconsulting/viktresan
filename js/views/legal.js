@@ -83,7 +83,7 @@ export async function privacyView(el, ctx) {
       'För att dela med dem du väljer.'
     ]))}
     ${sec('Var det sparas', ul([
-      '<b>Google Firebase</b> (Google Cloud) sparar uppgifterna. Google är vårt personuppgiftsbiträde. Uppgifter kan hanteras utanför EU. Google skyddar dem då med EU:s standardavtal.',
+      '<b>Google Firebase</b> (Google Cloud) sparar uppgifterna. Databasen ligger i <b>EU</b> (Belgien och Nederländerna). Google är vårt personuppgiftsbiträde. Om Google i undantagsfall hanterar uppgifter utanför EU skyddas de med EU:s standardavtal.',
       '<b>GitHub Pages</b> visar själva appen. GitHub kan se din IP-adress när du öppnar den.',
       'När du skannar eller söker en vara skickas bara <b>streckkoden eller sökordet</b> till Open Food Facts. Inga uppgifter om dig.',
       'Skapar du en <b>länk till vården</b> sparas en kopia av rapporten. Den som har länken kan se den tills den slutar gälla eller du stänger av den.',

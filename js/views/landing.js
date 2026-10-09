@@ -113,7 +113,7 @@ export async function landingView(el) {
       ${['Allt du sparar är <b>privat</b> från början.',
          'Du väljer <b>vem</b> som får se <b>vad</b>. Vikt, mått, kost, bilder – var för sig.',
          'Du kan dela <b>bara procent</b>, utan att visa kilo.',
-         'Vi följer <b>GDPR</b>. Du kan ladda ner och radera allt när du vill.'].map((t) => `
+         'Vi följer <b>GDPR</b>. Allt sparas i <b>EU</b>, och du kan ladda ner och radera allt när du vill.'].map((t) => `
         <div class="row" style="gap:10px;align-items:flex-start;font-size:16px;line-height:1.45;color:var(--accent-ink)"><span style="flex-shrink:0;margin-top:2px">${icon('check', 20, 2.4)}</span><span>${t}</span></div>`).join('')}
       <a href="#/integritet" style="font-weight:600">Läs mer om integritet</a>
     </section>
