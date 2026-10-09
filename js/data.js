@@ -611,6 +611,7 @@ export async function deleteEverything(password) {
   const shares = await loadShares(uid);
   [...shares.out, ...shares.in].forEach((s) => refs.push(doc(db, 'shares', s.id)));
   (await getDocs(query(collection(db, 'reports'), where('owner', '==', uid)))).forEach((d) => refs.push(d.ref));
+  try { await deleteDoc(doc(db, 'aiUsage', uid)); } catch { /* finns inte */ }
   // Utmaningar: ta bort egna, lämna andras.
   try {
     const ch = collection(db, 'challenges');

@@ -31,6 +31,8 @@ html, body {
 }
 body { min-height: 100vh; }
 button, input, select, textarea { font: inherit; color: inherit; }
+/* Stoppa att iPhone zoomar när man trycker snabbt flera gånger. */
+button, a, label, input, select, textarea, [role="button"] { touch-action: manipulation; }
 a { color: var(--accent); }
 h1 { margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -.02em; line-height: 1.15; }
 h2 { margin: 0; font-size: 17px; font-weight: 700; }

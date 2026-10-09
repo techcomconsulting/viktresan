@@ -9,10 +9,11 @@ import {
 } from '../food.js';
 import { saveProfile, loadEntries, lastValues } from '../data.js';
 import { startScanner } from '../scanner.js';
+import { aiPhotoOn, shrinkImage, analyzeMeal, aiFood } from '../ai.js';
 import { esc, fmt1, icon, isoDay, dDay, openSheet, confirmSheet, toast, busy, errorText, parseNum, round1 } from '../ui.js';
 
 const num = (n) => Math.round(n).toLocaleString('sv-SE');
-const SRC = { slv: 'Livsmedelsverket', off: 'Open Food Facts', fam: 'Tillagd av er' };
+const SRC = { slv: 'Livsmedelsverket', off: 'Open Food Facts', fam: 'Tillagd av er', ai: 'Fotoanalys' };
 const addDays = (iso, n) => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() + n); return isoDay(d); };
 const litre = (cl) => (cl / 100).toFixed(2).replace(/0$/, '').replace(/\.0$/, '').replace('.', ',') + ' l';
 
@@ -531,6 +532,8 @@ export async function addFoodView(el, ctx) {
       <span style="width:44px"></span>
     </div>
     <a href="#/kost/skanna" class="btn primary block" style="height:64px;font-size:17px;border-radius:18px">${icon('scan', 26, 2)}Skanna streckkod</a>
+    <button type="button" class="btn outline block hidden" data-photo style="height:56px;font-size:16px;border-radius:18px">${icon('camera', 24, 2)}Fota maten</button>
+    <input type="file" accept="image/*" capture="environment" data-photofile class="hidden" aria-hidden="true" tabindex="-1">
     <div class="row" style="gap:8px;background:#fff;border:1px solid var(--field-line);border-radius:14px;padding:0 12px">
       <span class="muted">${icon('search', 20)}</span>
       <input id="q" type="search" placeholder="Sök mat, t.ex. kyckling" aria-label="Sök mat" autocomplete="off" style="flex:1;min-width:0;height:48px;border:0;outline:none;background:transparent;font-size:16px">
@@ -548,6 +551,11 @@ export async function addFoodView(el, ctx) {
   const tabs = el.querySelector('[data-tabs]');
   el.querySelector('#mt').addEventListener('change', (e) => { state.kostMeal = e.target.value; });
   el.querySelector('[data-new]').addEventListener('click', () => openNewFoodSheet(ctx, '', q));
+  const photoBtn = el.querySelector('[data-photo]');
+  const photoFile = el.querySelector('[data-photofile]');
+  aiPhotoOn().then((on) => { if (on) photoBtn.classList.remove('hidden'); });
+  photoBtn.addEventListener('click', () => { photoFile.value = ''; photoFile.click(); });
+  photoFile.addEventListener('change', () => { const f = photoFile.files && photoFile.files[0]; if (f) openPhotoSheet(ctx, f); });
 
   const row = (title, sub, tag, i) => `<div class="list-row" style="padding:8px 8px 8px 16px">
     <button type="button" data-pick="${i}" class="grow stack" style="gap:2px;border:0;background:none;text-align:left;padding:0;cursor:pointer;min-height:44px;justify-content:center">
@@ -627,6 +635,97 @@ export async function addFoodView(el, ctx) {
   });
   tabs.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => { tab = b.dataset.tab; showTab(); }));
   showTab();
+}
+
+// ---------- Fota maten ----------
+
+async function openPhotoSheet(ctx, file) {
+  const { state } = ctx;
+  let meal = state.kostMeal || mealNow();
+  let pic;
+  try { pic = await shrinkImage(file); } catch { toast('Kunde inte läsa bilden.'); return; }
+  const s = openSheet(`<div data-body></div>`, 'Fota maten');
+  const body = s.el.querySelector('[data-body]');
+  let rows = [];
+  let note = '';
+  let left = null;
+  const head = `<img src="${pic.dataUrl}" alt="Ditt foto" style="width:100%;max-height:220px;object-fit:cover;border-radius:16px;display:block">`;
+
+  const loading = () => {
+    body.innerHTML = `<div class="stack" style="gap:16px">${head}
+      <div class="card" style="box-shadow:none;border:1px solid var(--line);text-align:center;padding:22px">
+        <b style="font-size:16px">Tittar på maten…</b><p class="small muted" style="margin:6px 0 0">Det tar några sekunder.</p></div></div>`;
+  };
+  const fail = (msg) => {
+    body.innerHTML = `<div class="stack" style="gap:16px">${head}
+      <p style="font-size:15px">${esc(msg)}</p>
+      <div class="btn-row"><button class="btn" data-x>Stäng</button><button class="btn primary" data-retry>Försök igen</button></div></div>`;
+    body.querySelector('[data-x]').onclick = () => s.close();
+    body.querySelector('[data-retry]').onclick = () => run('');
+  };
+  const draw = () => {
+    const on = rows.filter((r) => r.on);
+    const tot = on.reduce((t, r) => t + nutrition(r.food, r.g).kcal, 0);
+    body.innerHTML = `<div class="stack" style="gap:14px">${head}
+      <div class="between" style="align-items:baseline"><h2 style="font-size:20px">Det här ser jag</h2><span class="num" style="font-size:22px;font-weight:700"><span data-tot>${num(tot)}</span> <span class="muted" style="font-size:14px">kcal</span></span></div>
+      <p class="small" style="margin:0;padding:10px 12px;border-radius:12px;background:#FFF6E5;color:#6B4A00">Det är en uppskattning. Ändra mängden om den inte stämmer.${note ? ' ' + esc(note) : ''}</p>
+      <div class="card flush" style="box-shadow:none;border:1px solid var(--line)">
+        ${rows.map((r, i) => `<div class="list-row" style="gap:10px;padding:8px 12px;min-height:60px">
+          <input type="checkbox" data-on="${i}" ${r.on ? 'checked' : ''} aria-label="Ta med ${esc(r.food.name)}" style="width:22px;height:22px;flex-shrink:0">
+          <span class="grow stack" style="gap:1px;min-width:0"><span style="font-size:15px;font-weight:600">${esc(r.food.name)}</span>
+            <span class="small muted num" style="font-size:12px" data-k="${i}">${num(nutrition(r.food, r.g).kcal)} kcal</span></span>
+          <div class="unit-input" style="width:104px;height:42px;flex-shrink:0"><input data-g="${i}" inputmode="decimal" value="${r.food.liquid ? fmt1(r.g / 10).replace(',0', '') : Math.round(r.g)}" aria-label="Mängd ${esc(r.food.name)}"><span>${r.food.liquid ? 'cl' : 'g'}</span></div>
+        </div>`).join('')}
+      </div>
+      <div class="field"><label for="ph">Blev det fel? Skriv vad det är (valfritt)</label>
+        <div class="row" style="gap:8px"><input class="input grow" id="ph" maxlength="200" placeholder="t.ex. det är lättmjölk och fullkornspasta" style="min-width:0">
+        <button class="btn outline sm" data-again style="height:48px;flex-shrink:0">Analysera igen</button></div></div>
+      <div class="field"><label for="pm">Måltid</label><select class="input" id="pm">${MEALS.map(([k, l]) => `<option value="${k}" ${k === meal ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+      <div class="btn-row"><button class="btn" data-x>Avbryt</button><button class="btn primary" data-add ${on.length ? '' : 'disabled'}>Lägg till</button></div>
+      <p class="small muted" style="margin:0;text-align:center;font-size:12px">Bilden sparas inte.${left != null ? ` Du har ${left} foton kvar idag.` : ''}</p>
+    </div>`;
+    // Uppdatera siffrorna utan att rita om allt (annars tappar man fokus i fälten).
+    const refresh = () => {
+      rows.forEach((r, i) => { body.querySelector(`[data-k="${i}"]`).textContent = `${num(nutrition(r.food, r.g).kcal)} kcal`; });
+      body.querySelector('[data-tot]').textContent = num(rows.filter((r) => r.on).reduce((t, r) => t + nutrition(r.food, r.g).kcal, 0));
+      body.querySelector('[data-add]').disabled = !rows.some((r) => r.on);
+    };
+    body.querySelectorAll('[data-on]').forEach((b) => { b.onchange = () => { rows[Number(b.dataset.on)].on = b.checked; refresh(); }; });
+    body.querySelectorAll('[data-g]').forEach((b) => { b.oninput = () => {
+      const r = rows[Number(b.dataset.g)];
+      const v = parseNum(b.value);
+      if (v && v > 0 && v < 5000) { r.g = r.food.liquid ? v * 10 : v; refresh(); }
+    }; });
+    body.querySelector('#pm').onchange = (e) => { meal = e.target.value; };
+    body.querySelector('[data-x]').onclick = () => s.close();
+    body.querySelector('[data-again]').onclick = () => run(body.querySelector('#ph').value.trim());
+    body.querySelector('[data-add]').onclick = async (e) => {
+      const day = state.kostDay || isoDay(new Date());
+      await busy(e.currentTarget, async () => {
+        try {
+          for (const r of rows.filter((x) => x.on)) {
+            const label = r.food.liquid ? `${fmt1(r.g / 10).replace(',0', '')} cl` : `${Math.round(r.g)} g`;
+            await logFood(day, meal, r.food, r.g, label);
+          }
+          s.close();
+          toast(`Tillagt i ${mealName(meal).toLowerCase()}.`);
+          ctx.go('/kost');
+        } catch (ex) { toast(errorText(ex)); }
+      });
+    };
+  };
+  const run = async (hint) => {
+    loading();
+    try {
+      const res = await analyzeMeal(pic.base64, pic.mime, hint);
+      left = res.left;
+      if (!res.isFood) { fail('Jag ser ingen mat på bilden. Prova att ta ett nytt foto rakt ovanifrån.'); return; }
+      note = res.note || '';
+      rows = res.items.map((it) => ({ food: aiFood(it), g: it.grams, on: true }));
+      draw();
+    } catch (ex) { fail(ex.message || 'Något gick fel.'); }
+  };
+  run('');
 }
 
 // ---------- Skanna ----------
