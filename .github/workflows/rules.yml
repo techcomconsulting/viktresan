@@ -1,0 +1,46 @@
+name: Publicera Firestore-regler
+
+# Publicerar firestore.rules till Firebase automatiskt när filen ändras.
+# Kräver hemligheten FIREBASE_SA (JSON-nyckel för ett servicekonto med rollen "Firebase Rules Admin").
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - firestore.rules
+
+concurrency:
+  group: firestore-rules
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SA }}
+          token_format: access_token
+
+      - name: Ladda upp och aktivera reglerna
+        env:
+          TOKEN: ${{ steps.auth.outputs.access_token }}
+          PROJECT: viktresan-25170
+        run: |
+          set -euo pipefail
+          API="https://firebaserules.googleapis.com/v1/projects/$PROJECT"
+          # 1. Skapa en ny regeluppsättning från filen
+          python3 -c 'import json; print(json.dumps({"source": {"files": [{"name": "firestore.rules", "content": open("firestore.rules").read()}]}}))' > body.json
+          curl -sS --fail-with-body -X POST "$API/rulesets" \
+            -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d @body.json > ruleset.json
+          NAME=$(python3 -c 'import json; print(json.load(open("ruleset.json"))["name"])')
+          echo "Ny regeluppsättning: $NAME"
+          # 2. Gör den aktiv för Firestore
+          python3 -c "import json,sys; print(json.dumps({'release': {'name': 'projects/$PROJECT/releases/cloud.firestore', 'rulesetName': '$NAME'}}))" > rel.json
+          curl -sS --fail-with-body -X PATCH "$API/releases/cloud.firestore" \
+            -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" -d @rel.json
+          echo
+          echo "Klart! Reglerna är publicerade."
