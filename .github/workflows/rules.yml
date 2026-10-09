@@ -19,18 +19,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - id: auth
-        uses: google-github-actions/auth@v2
+      - uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.FIREBASE_SA }}
-          token_format: access_token
+
+      - uses: google-github-actions/setup-gcloud@v2
 
       - name: Ladda upp och aktivera reglerna
         env:
-          TOKEN: ${{ steps.auth.outputs.access_token }}
           PROJECT: viktresan-25170
         run: |
           set -euo pipefail
+          TOKEN=$(gcloud auth print-access-token)
           API="https://firebaserules.googleapis.com/v1/projects/$PROJECT"
           # 1. Skapa en ny regeluppsättning från filen
           python3 -c 'import json; print(json.dumps({"source": {"files": [{"name": "firestore.rules", "content": open("firestore.rules").read()}]}}))' > body.json
