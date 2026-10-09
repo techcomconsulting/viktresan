@@ -9,6 +9,10 @@ service cloud.firestore {
     function signedIn() { return request.auth != null; }
     function me() { return request.auth.uid; }
     function isOwner(owner) { return signedIn() && me() == owner; }
+    // Admin = den som har ett dokument i "admins" med sitt användar-id (läggs in för hand i Firebase).
+    function isAdmin() {
+      return signedIn() && exists(/databases/$(database)/documents/admins/$(me()));
+    }
     function sharePath(owner) {
       return /databases/$(database)/documents/shares/$(owner + '_' + request.auth.uid);
     }
@@ -104,7 +108,8 @@ service cloud.firestore {
         && request.resource.data.public is bool
         && request.resource.data.audience in ['shares', 'public', 'group', 'people'];
       allow update: if signedIn() && resource.data.owner == me() && request.resource.data.owner == me();
-      allow delete: if signedIn() && resource.data.owner == me();
+      // Ägaren, eller admin (för att ta bort olämpliga offentliga inlägg).
+      allow delete: if signedIn() && (resource.data.owner == me() || isAdmin());
 
       match /comments/{cid} {
         allow read: if canSeePost(postData(pid));
@@ -130,14 +135,16 @@ service cloud.firestore {
         && request.resource.data.name is string
         && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 80
         && request.resource.data.per100.kcal is number;
-      allow update, delete: if signedIn() && resource.data.createdBy == me();
+      allow update, delete: if signedIn() && (resource.data.createdBy == me() || isAdmin());
+    }
+
+    // Nyheter som admin skriver. Visas som NYHET-ruta i appen.
+    match /announcements/{id} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
     }
 
     // Antal användare. Bara siffran. Bara admin kan läsa den.
-    // Admin = den som har ett dokument i "admins" med sitt användar-id (läggs in för hand i Firebase).
-    function isAdmin() {
-      return signedIn() && exists(/databases/$(database)/documents/admins/$(me()));
-    }
     function statsPath() { return /databases/$(database)/documents/stats/users; }
     function memberPath() { return /databases/$(database)/documents/stats/users/members/$(me()); }
     function oldCount() { return exists(statsPath()) ? get(statsPath()).data.count : 0; }

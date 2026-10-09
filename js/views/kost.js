@@ -1,4 +1,5 @@
 // Kost: dagens mat, lägg till mat, skanna streckkod.
+import { db, collection, getDocs, query, where } from '../firebase.js';
 import { tipLink } from '../tips.js';
 import {
   MEALS, mealName, mealNow, loadDay, dayTotals, logFood, updateLogged, removeLogged, loadRecent, loadWater, setWater,
@@ -726,9 +727,25 @@ const NEWS = [
   ], note: 'Du hittar det under Profil.' }
 ];
 
-export function maybeShowNews(ctx) {
+// Nyheter som admin skriver på admin.viktresan.online (samlingen "announcements").
+async function nextAnnouncement() {
+  try {
+    const s = await getDocs(query(collection(db, 'announcements'), where('active', '==', true)));
+    const list = s.docs.map((d) => ({ id: 'vt-ann-' + d.id, ...d.data() }))
+      .sort((a, b) => (b.created?.toMillis?.() || 0) - (a.created?.toMillis?.() || 0));
+    const n = list.find((x) => !localStorage.getItem(x.id));
+    if (!n) return null;
+    return { id: n.id, title: esc(n.title || 'Nyhet'), go: n.go || '', note: esc(n.note || ''),
+      rows: (n.rows || []).filter(Boolean).slice(0, 6).map((t) => ['sparkle', esc(t)]) };
+  } catch { return null; }
+}
+
+export async function maybeShowNews(ctx) {
   let n;
-  try { n = NEWS.find((x) => !localStorage.getItem(x.id)); if (!n) return; localStorage.setItem(n.id, '1'); } catch { return; }
+  try { n = NEWS.find((x) => !localStorage.getItem(x.id)); } catch { return; }
+  if (!n) n = await nextAnnouncement();
+  if (!n) return;
+  try { localStorage.setItem(n.id, '1'); } catch { /* ok */ }
   const s = openSheet(`
     <span class="chip warn" style="align-self:flex-start;font-size:13px;letter-spacing:.06em">${icon('sparkle', 14, 2)}NYHET</span>
     <h2 style="font-size:24px">${n.title}</h2>
@@ -736,9 +753,9 @@ export function maybeShowNews(ctx) {
       ${n.rows.map(([ic, t]) => `<div class="row">${ic === 'water' ? '<span style="font-size:22px;width:24px;text-align:center">💧</span>' : icon(ic, 24)}<span>${t}</span></div>`).join('')}
     </div>
     <p class="small muted">${n.note}</p>
-    <button class="btn primary block" data-try>Testa nu</button>
-    <button class="btn ghost block" data-close>Senare</button>`, 'Nyhet');
-  s.el.querySelector('[data-try]').addEventListener('click', () => { s.close(); ctx.go(n.go); });
+    ${n.go ? '<button class="btn primary block" data-try>Testa nu</button>' : ''}
+    <button class="btn ${n.go ? 'ghost' : 'primary'} block" data-close>${n.go ? 'Senare' : 'Okej!'}</button>`, 'Nyhet');
+  s.el.querySelector('[data-try]')?.addEventListener('click', () => { s.close(); ctx.go(n.go); });
 }
 
 // ---------- Lägg till träning ----------
