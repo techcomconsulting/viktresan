@@ -67,10 +67,10 @@ export async function profileView(el, ctx) {
         </div>
       </section>
 
-      ${admin ? `<section class="card row" style="gap:14px;border:1.5px dashed var(--accent)">
+      ${admin ? `<a href="#/admin" class="card row" style="gap:14px;border:1.5px dashed var(--accent);text-decoration:none;color:inherit">
         <span style="width:48px;height:48px;border-radius:14px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;flex-shrink:0">${icon('users', 26)}</span>
-        <span class="grow stack" style="gap:0"><span class="small muted">Användare i appen</span><b class="num" style="font-size:30px;line-height:1.1">${users == null ? '–' : users}</b><span class="small muted">Bara du ser detta</span></span>
-      </section>` : ''}
+        <span class="grow stack" style="gap:0"><span class="small muted">Användare i appen</span><b class="num" style="font-size:30px;line-height:1.1">${users == null ? '–' : users}</b><span class="small muted">Tryck för adminsidan · bara du ser detta</span></span>
+        ${icon('right', 18, 2)}</a>` : ''}
       <button class="card row" data-invitefriend style="border:0;cursor:pointer;text-align:left;background:linear-gradient(135deg,#F6EEFA,#FCEFF4);gap:12px">
         <span style="font-size:30px">💜</span>
         <span class="grow stack" style="gap:2px"><b style="font-size:17px">Bjud in en vän</b><span class="small muted">Gå ner i vikt tillsammans</span></span>${icon('right', 18, 2)}</button>

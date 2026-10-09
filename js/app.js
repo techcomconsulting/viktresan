@@ -1,6 +1,7 @@
 // Startpunkten: håller koll på inloggning, sidor och menyn.
 import { isConfigured, auth, onAuthStateChanged } from './firebase.js';
 import { getProfile, watchUnread, prefetch, ensurePercent, ensureCounted, TERMS_VERSION } from './data.js';
+import { loadTips, recordTipClick } from './tips.js';
 import { icon, esc, $$ } from './ui.js';
 import './install.js';
 import { loginView, registerView, forgotView, onboardingView } from './views/auth.js';
@@ -167,6 +168,7 @@ async function startSession(user) {
   if (state.unsub) state.unsub();
   state.unsub = watchUnread(user.uid, (n) => { state.unread = n; updateBadges(); });
   prefetch(user.uid);
+  loadTips();
   if (state.profile?.onboarded) ensurePercent(user.uid, state.profile).catch(() => {});
   ensureCounted(user.uid, state.profile);
 }
@@ -192,6 +194,9 @@ if (!isConfigured) {
     route();
   });
 }
+
+// Räkna klick på reklamlänkar.
+document.addEventListener('click', (e) => { const a = e.target.closest && e.target.closest('[data-tip]'); if (a) recordTipClick(a.dataset.tip); });
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('sw.js').catch(() => {});

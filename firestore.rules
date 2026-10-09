@@ -155,13 +155,26 @@ service cloud.firestore {
           || (request.resource.data.count == oldCount() - 1 && exists(memberPath()) && !existsAfter(memberPath())));
       match /members/{uid} {
         allow get: if signedIn() && me() == uid;
-        allow list: if false;
+        // Admin får räkna (dokumenten innehåller bara datum, inga namn).
+        allow list: if isAdmin();
         allow create: if signedIn() && me() == uid
           && request.resource.data.keys().hasOnly(['at'])
           && getAfter(statsPath()).data.count == oldCount() + 1;
         allow delete: if signedIn() && me() == uid
           && getAfter(statsPath()).data.count == oldCount() - 1;
       }
+    }
+
+    // Reklamlänkar (Tips och prylar). Alla inloggade läser, bara admin ändrar.
+    match /tips/{id} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+    // Antal klick per reklamlänk. Bara +1 åt gången. Bara admin ser siffrorna.
+    match /tipClicks/{id} {
+      allow read: if isAdmin();
+      allow create: if signedIn() && request.resource.data.keys().hasOnly(['count']) && request.resource.data.count == 1;
+      allow update: if signedIn() && request.resource.data.keys().hasOnly(['count']) && request.resource.data.count == resource.data.count + 1;
     }
 
     // Rapport till vården: en tillfällig länk som läkaren kan öppna utan konto.
