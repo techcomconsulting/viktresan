@@ -827,7 +827,7 @@ const NEWS = [
   ], note: 'Du hittar det under Profil.' },
   { id: 'vt-tips-dela-1', chip: 'TIPS', title: 'Dela Viktresan med vänner!', invite: true, rows: [
     ['send', 'Skicka appen till <b>vänner och familj</b>'], ['users', 'Det går lättare att gå ner i vikt <b>tillsammans</b>'],
-    ['sparkle', 'Appen är <b>gratis</b> att använda'], ['lock', 'Ni väljer själva vad ni <b>delar</b> med varandra']
+    ['sparkle', 'Appen är <b>gratis</b> att använda'], ['sparkle', 'Få <b>märken</b> när 5 och 15 vänner har gått med']
   ], note: 'Ju fler som använder appen, desto bättre kan vi göra den. Tack för hjälpen!' }
 ];
 

@@ -54,6 +54,7 @@ export function openInviteFriend(ctx) {
     <h2 style="font-size:24px">Bjud in en vän</h2>
     <p style="font-size:16px;line-height:1.45;margin:0">Det är lättare att gå ner i vikt tillsammans. Skicka länken till någon du vill peppa.</p>
     <p class="small muted" style="margin:0">När din vän har gått med får du en notis. Sedan väljer ni själva vad ni delar.</p>
+    <p class="small" data-invcount style="margin:0;padding:10px 12px;border-radius:12px;background:var(--accent-soft);color:var(--accent-ink)">🤝 Bjud in 5 och 15 vänner och få <b>märken</b>!</p>
     ${canShare ? `<button class="btn primary block" data-share>${icon('send', 20)}Skicka länken</button>` : ''}
     <a class="btn ${canShare ? 'outline' : 'primary'} block" href="sms:?&body=${encodeURIComponent(text + ' ' + link)}">${icon('comment', 20)}Skicka som sms</a>
     <button class="btn outline block" data-copy>${icon('copy', 20)}Kopiera länken</button>
@@ -61,6 +62,13 @@ export function openInviteFriend(ctx) {
     ${socialButtons(link, text)}
     <p class="small muted" style="margin:0">Instagram eller TikTok? Tryck på <b>Skicka länken</b> och välj appen där.</p>
     <button class="btn ghost block" data-close>Stäng</button>`, 'Bjud in en vän');
+  // data.js laddas först här, så att startsidan (som också använder den här filen) kan byggas utan Firebase.
+  if (ctx.state.user) import('./data.js').then((m) => m.inviteCount(ctx.state.user.uid)).then((n) => {
+    const el = s.el.querySelector('[data-invcount]');
+    if (!el || n == null) return;
+    const next = n < 5 ? 5 : n < 15 ? 15 : null;
+    el.innerHTML = `🤝 <b>${n}</b> ${n === 1 ? 'vän har' : 'vänner har'} gått med via dig.` + (next ? ` ${next - n} till för nästa <b>märke</b>!` : ' Du har alla inbjudningsmärken!');
+  });
   s.el.querySelector('[data-share]')?.addEventListener('click', async () => {
     try { await navigator.share({ title: 'Viktresan', text, url: link }); } catch { /* avbrutet */ }
   });

@@ -153,6 +153,17 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Inbjudningar: den som gick med via en länk lägger en markering hos den som bjöd in.
+    // Bara datum. Bara den som bjöd in kan se (räkna) sina.
+    match /invites/{inviter}/joined/{uid} {
+      allow get: if signedIn() && (me() == inviter || me() == uid);
+      allow list: if signedIn() && me() == inviter;
+      allow create: if signedIn() && me() == uid && inviter != uid
+        && request.resource.data.keys().hasOnly(['at'])
+        && get(/databases/$(database)/documents/users/$(uid)).data.invitedBy == inviter;
+      allow delete: if signedIn() && (me() == uid || me() == inviter);
+    }
+
     // Nyheter som admin skriver. Visas som NYHET-ruta i appen.
     match /announcements/{id} {
       allow read: if signedIn();

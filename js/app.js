@@ -1,6 +1,6 @@
 // Startpunkten: håller koll på inloggning, sidor och menyn.
 import { isConfigured, auth, onAuthStateChanged } from './firebase.js';
-import { getProfile, watchUnread, prefetch, ensurePercent, ensureCounted, TERMS_VERSION } from './data.js';
+import { getProfile, watchUnread, prefetch, ensurePercent, ensureCounted, ensureInviteCounted, TERMS_VERSION } from './data.js';
 import { loadTips, recordTipClick } from './tips.js';
 import { icon, esc, $$ } from './ui.js';
 import './install.js';
@@ -171,6 +171,7 @@ async function startSession(user) {
   loadTips();
   if (state.profile?.onboarded) ensurePercent(user.uid, state.profile).catch(() => {});
   ensureCounted(user.uid, state.profile);
+  ensureInviteCounted(user.uid, state.profile);
 }
 ctx.startSession = startSession;
 

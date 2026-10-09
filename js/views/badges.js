@@ -1,6 +1,6 @@
 // Märken: sidan med alla märken, och firandet när man klarar ett nytt.
 import { BADGES, earnedBadges } from '../milestones.js';
-import { loadEntries, saveProfile, createPost } from '../data.js';
+import { loadEntries, saveProfile, createPost, inviteCount } from '../data.js';
 import { esc, backLink, openSheet, toast, confetti } from '../ui.js';
 
 const badge = ([id, emoji, name, desc], on, big = false) => `<div class="stack" style="align-items:center;text-align:center;gap:4px;padding:${big ? 14 : 10}px 6px;border-radius:18px;background:${on ? 'linear-gradient(160deg,#F6EEFA,#FCEFF4)' : '#F3F1EC'};${on ? '' : 'opacity:.55'}">
@@ -10,7 +10,8 @@ const badge = ([id, emoji, name, desc], on, big = false) => `<div class="stack" 
 
 export async function badgesView(el, ctx) {
   const { state } = ctx;
-  const entries = await loadEntries(state.user.uid).catch(() => []);
+  const [entries, inv] = await Promise.all([loadEntries(state.user.uid).catch(() => []), inviteCount(state.user.uid)]);
+  if (inv != null) state.profile.invites = inv;
   const got = earnedBadges(entries, state.profile);
   el.innerHTML = `<div class="screen">
     ${backLink('#/profil', 'Profil')}
@@ -37,10 +38,12 @@ export function badgesCard(entries, profile) {
 export async function checkNewBadges(ctx, entries) {
   const { state } = ctx;
   const p = state.profile;
+  const inv = await inviteCount(state.user.uid);
+  if (inv != null) p.invites = inv;
   const got = earnedBadges(entries, p);
   const seen = Array.isArray(p.badgesSeen) ? p.badgesSeen : null;
   const fresh = seen ? [...got].filter((id) => !seen.includes(id)) : [];
-  const all = [...got];
+  const all = [...new Set([...(seen || []), ...got])];
   if (seen && !fresh.length) return false;
   try { await saveProfile(state.user.uid, { badgesSeen: all }); p.badgesSeen = all; } catch { return false; }
   // Första gången: visa vad man redan har klarat, om det finns något utöver första mätningen.

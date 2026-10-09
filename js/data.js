@@ -563,6 +563,25 @@ export async function ensureCounted(uid, profile) {
   } catch { /* försöker igen nästa gång */ }
 }
 
+// ---------- Inbjudningar (för märkena "Bjudit in 5" och "Bjudit in 15") ----------
+// Den som gick med via en inbjudan lägger en markering hos den som bjöd in. Bara datum, inget annat.
+const joinedDoc = (inviter, uid) => doc(db, 'invites', inviter, 'joined', uid);
+
+export async function ensureInviteCounted(uid, profile) {
+  if (!profile || !profile.invitedBy || profile.inviteCounted || profile.invitedBy === uid) return;
+  try {
+    const d = await getDoc(joinedDoc(profile.invitedBy, uid)).catch(() => null);
+    if (!d || !d.exists()) await setDoc(joinedDoc(profile.invitedBy, uid), { at: serverTimestamp() });
+    await setDoc(userDoc(uid), { inviteCounted: true }, { merge: true });
+    profile.inviteCounted = true;
+  } catch { /* försöker igen nästa gång */ }
+}
+
+// Hur många har gått med via mina inbjudningar?
+export async function inviteCount(uid) {
+  try { return (await getDocs(collection(db, 'invites', uid, 'joined'))).size; } catch { return null; }
+}
+
 async function uncount(uid) {
   try {
     const m = await getDoc(memberDoc(uid));
@@ -612,6 +631,8 @@ export async function deleteEverything(password) {
   [...shares.out, ...shares.in].forEach((s) => refs.push(doc(db, 'shares', s.id)));
   (await getDocs(query(collection(db, 'reports'), where('owner', '==', uid)))).forEach((d) => refs.push(d.ref));
   try { await deleteDoc(doc(db, 'aiUsage', uid)); } catch { /* finns inte */ }
+  if (profile?.invitedBy) { try { await deleteDoc(joinedDoc(profile.invitedBy, uid)); } catch { /* ok */ } }
+  try { (await getDocs(collection(db, 'invites', uid, 'joined'))).forEach((d) => refs.push(d.ref)); } catch { /* ok */ }
   // Utmaningar: ta bort egna, lämna andras.
   try {
     const ch = collection(db, 'challenges');

@@ -22,7 +22,9 @@ export const BADGES = [
   ['goal', '🏆', 'Målet nått!', 'Du har nått din målvikt'],
   ['weeks4', '📅', '4 veckor i rad', 'Vägt dig varje vecka i 4 veckor'],
   ['weeks8', '🗓️', '8 veckor i rad', 'Vägt dig varje vecka i 8 veckor'],
-  ['weeks12', '🥇', '12 veckor i rad', 'Vägt dig varje vecka i 12 veckor']
+  ['weeks12', '🥇', '12 veckor i rad', 'Vägt dig varje vecka i 12 veckor'],
+  ['inv5', '🤝', 'Bjudit in 5', '5 vänner har gått med via dig'],
+  ['inv15', '📣', 'Bjudit in 15', '15 vänner har gått med via dig']
 ];
 
 // Veckonummer (måndag som första dag), som ett löpande tal.
@@ -38,6 +40,9 @@ function longestWeekStreak(dates) {
 // Vilka märken har man klarat? entries = alla mätningar (äldst först).
 export function earnedBadges(entries, profile) {
   const out = new Set();
+  const inv = profile.invites || 0;
+  if (inv >= 5) out.add('inv5');
+  if (inv >= 15) out.add('inv15');
   if (!entries.length) return out;
   out.add('first');
   const w = entries.filter((e) => e.weight != null);
