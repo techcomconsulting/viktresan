@@ -179,6 +179,31 @@ export async function feedView(el, ctx) {
 
 // ---------- Hantera delning ----------
 
+// ---------- Dela mina uppgifter med en person ----------
+
+export function openShareSheet(ctx, person, after) {
+  const me = ctx.state.user.uid;
+  const myName = ctx.state.profile.firstName;
+  const perms = { weight: true, weightKg: false, measures: false, history: false, photos: false, posts: true, food: false, blood: false, treatment: false };
+  const range = { value: '3m' };
+  const s = openSheet(`
+    <div class="row">${avatar(person.firstName, person.avatar, 48)}<h2>Dela med ${esc(person.firstName)}?</h2></div>
+    <p class="muted" style="font-size:14px">Välj vad ${esc(person.firstName)} får se. Du kan ändra det när som helst.</p>
+    ${permsEditor(perms, range.value)}
+    <div class="btn-row"><button class="btn" data-close>Avbryt</button><button class="btn primary" data-send>Skicka förfrågan</button></div>`, 'Dela');
+  wirePerms(s.el, perms, range);
+  s.el.querySelector('[data-send]').addEventListener('click', async (e) => {
+    await busy(e.currentTarget, async () => {
+      try {
+        await createShare(me, myName, person, perms, range.value);
+        s.close();
+        toast(`Förfrågan skickad till ${person.firstName}.`);
+        if (after) await after();
+      } catch (ex) { toast(errorText(ex)); }
+    });
+  });
+}
+
 export async function sharingView(el, ctx) {
   const { state } = ctx;
   const me = state.user.uid;
@@ -216,7 +241,7 @@ export async function sharingView(el, ctx) {
       </div></section>` : ''}
 
       ${theirs.length ? `<section class="stack"><h2>Delar med dig</h2><div class="card flush">
-        ${theirs.map((s) => `<a class="list-row" href="#/person/${s.owner}">${avatar(nameOf(s.owner), cards[s.owner]?.avatar, 40)}<span class="grow title">${esc(nameOf(s.owner))}</span>${icon('right', 18, 2)}</a>`).join('')}
+        ${theirs.map((s) => `<a class="list-row" href="#/person/${s.owner}">${avatar(nameOf(s.owner), cards[s.owner]?.avatar, 40)}<span class="grow stack" style="gap:2px"><span class="title">${esc(nameOf(s.owner))}</span><span class="sub">${sh.out.some((x) => x.viewer === s.owner) ? 'Ni delar med varandra' : 'Tryck för att dela tillbaka'}</span></span>${icon('right', 18, 2)}</a>`).join('')}
       </div></section>` : ''}
 
       <section class="stack"><div class="between"><h2>Mina grupper</h2><button class="btn outline sm" data-newgroup>${icon('plus', 18, 2.2)}Ny grupp</button></div>
@@ -276,32 +301,19 @@ export async function sharingView(el, ctx) {
       });
     });
 
-    const openInviteSheet = (person) => {
-      const perms = { weight: true, weightKg: false, measures: false, history: false, photos: false, posts: true, food: false, blood: false, treatment: false };
-      const range = { value: '3m' };
-      const s = openSheet(`
-        <div class="row">${avatar(person.firstName, person.avatar, 48)}<h2>Dela med ${esc(person.firstName)}?</h2></div>
-        <p class="muted" style="font-size:14px">Välj vad ${esc(person.firstName)} får se. Du kan ändra det när som helst.</p>
-        ${permsEditor(perms, range.value)}
-        <div class="btn-row"><button class="btn" data-close>Avbryt</button><button class="btn primary" data-send>Skicka förfrågan</button></div>`, 'Dela');
-      wirePerms(s.el, perms, range);
-      s.el.querySelector('[data-send]').addEventListener('click', async (e) => {
-        await busy(e.currentTarget, async () => {
-          try {
-            await createShare(me, myName, person, perms, range.value);
-            s.close();
-            toast(`Förfrågan skickad till ${person.firstName}.`);
-            el.querySelector('#inv').value = '';
-            await draw();
-          } catch (ex) { toast(errorText(ex)); }
-        });
-      });
-    };
+    const openInviteSheet = (person) => openShareSheet(ctx, person, async () => { el.querySelector('#inv').value = ''; await draw(); });
 
     el.querySelectorAll('[data-accept]').forEach((b) => b.addEventListener('click', async () => {
       const s = incoming.find((x) => x.id === b.dataset.accept);
       await busy(b, async () => {
-        try { await acceptShare(s, myName); toast(`Nu kan du följa ${s.ownerName}.`); await draw(); } catch (ex) { toast(errorText(ex)); }
+        try {
+          await acceptShare(s, myName);
+          toast(`Nu kan du följa ${s.ownerName}.`);
+          await draw();
+          if (!sh.out.some((x) => x.viewer === s.owner) && await confirmSheet({ title: `Vill du dela med ${s.ownerName} också?`, text: 'Då kan ni peppa varandra. Du väljer själv vad som syns.', ok: 'Ja, välj vad', cancel: 'Inte nu' })) {
+            openShareSheet(ctx, { uid: s.owner, firstName: s.ownerName }, draw);
+          }
+        } catch (ex) { toast(errorText(ex)); }
       });
     }));
     el.querySelectorAll('[data-decline], [data-cancel]').forEach((b) => b.addEventListener('click', async () => {
@@ -356,6 +368,13 @@ export async function personView(el, ctx, owner) {
   const P = share.perms || {};
   const card = await getCard(owner);
   const name = card?.firstName || share.ownerName;
+  const back = (await loadShares(me).catch(() => ({ out: [] }))).out.find((x) => x.viewer === owner);
+  const backBox = !back
+    ? `<section class="card stack" style="gap:12px"><div class="row" style="gap:12px">${icon('send', 22)}<span class="grow stack" style="gap:2px"><b>Du delar inget med ${esc(name)} än</b><span class="small muted">Dela tillbaka, så kan ni peppa varandra.</span></span></div>
+        <button class="btn primary block" data-shareback>Dela mina uppgifter</button></section>`
+    : back.status === 'pending'
+      ? `<div class="banner neutral" style="font-size:14px">Du har bjudit in ${esc(name)} att se dina uppgifter. Väntar på svar.</div>`
+      : `<a class="card row" href="#/delning/${back.id}" style="gap:12px;text-decoration:none;color:inherit">${icon('lock', 22)}<span class="grow stack" style="gap:2px"><b>Du delar med ${esc(name)}</b><span class="small muted">${esc(permText(back))}</span></span>${icon('right', 18, 2)}</a>`;
   const kg = !!(P.weight && P.weightKg);
   let foodToday = null;
   let bloodList = [];
@@ -447,10 +466,12 @@ export async function personView(el, ctx, owner) {
     ${backLink('#/delning', 'Hantera delning')}
     <div class="row" style="gap:14px">${avatar(name, card?.avatar, 56)}<div class="stack" style="gap:2px"><h1 style="font-size:26px">${esc(name)}</h1>
       <span class="small muted">Du ser bara det ${esc(name)} har valt att dela.</span></div></div>
+    ${backBox}
     ${parts.join('') || '<div class="card empty">Inget delat än.</div>'}
     <button class="btn danger block" data-leave>Sluta följa ${esc(name)}</button>
   </div>`;
   wirePosts(el, ctx, posts);
+  el.querySelector('[data-shareback]')?.addEventListener('click', () => openShareSheet(ctx, { uid: owner, firstName: name, avatar: card?.avatar }, () => ctx.rerender ? ctx.rerender() : personView(el, ctx, owner)));
   el.querySelector('[data-leave]').addEventListener('click', async () => {
     if (!(await confirmSheet({ title: `Sluta följa ${name}?`, text: 'Du ser inget mer förrän hen bjuder in dig igen.', ok: 'Sluta följa', danger: true }))) return;
     try { await removeShare(share.id); ctx.go('/delning'); } catch (ex) { toast(errorText(ex)); }
