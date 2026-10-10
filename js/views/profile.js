@@ -6,6 +6,7 @@ import {
 import { openWipeSheet, downloadMyData } from './legal.js';
 import { openInviteFriend } from '../invite.js';
 import { hasTips } from '../tips.js';
+import { openFeedback } from '../feedback.js';
 import {
   esc, fmt1, icon, avatar, openSheet, confirmSheet, toast, busy, errorText, parseNum, dShort, dFull, resizeImage, round1
 } from '../ui.js';
@@ -100,6 +101,7 @@ export async function profileView(el, ctx) {
         </div>
       </section>
 
+      <button class="btn ghost block" data-feedback style="font-size:15px">💡 Tipsa oss om en idé eller förbättring</button>
       <button class="btn outline block" data-logout>Logga ut</button>
       <button class="btn danger block" data-wipe>Radera mina uppgifter</button>
     </div>`;
@@ -182,6 +184,7 @@ export async function profileView(el, ctx) {
 
     el.querySelector('[data-wipe]').addEventListener('click', openWipeSheet);
     el.querySelector('[data-invitefriend]').addEventListener('click', () => openInviteFriend(ctx));
+    el.querySelector('[data-feedback]').addEventListener('click', () => openFeedback(ctx));
     el.querySelector('[data-export]').addEventListener('click', (e) => downloadMyData(ctx, e.currentTarget));
   };
 

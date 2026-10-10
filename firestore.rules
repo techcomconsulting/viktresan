@@ -143,6 +143,20 @@ service cloud.firestore {
       allow read: if signedIn();
       allow write: if isAdmin();
     }
+    // Tips från användarna. Admin läser. Man kan ta bort sina egna (när kontot raderas).
+    match /feedback/{id} {
+      allow create: if signedIn()
+        && request.resource.data.uid == me()
+        && request.resource.data.keys().hasOnly(['uid', 'name', 'kind', 'text', 'status', 'at'])
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1000
+        && request.resource.data.name is string && request.resource.data.name.size() <= 40
+        && request.resource.data.kind in ['idea', 'better', 'bug']
+        && request.resource.data.status == 'new';
+      allow read, delete: if isAdmin() || (signedIn() && resource.data.uid == me());
+      allow update: if isAdmin();
+    }
+
     // Inbjudningar: den som gick med via en länk lägger en markering hos den som bjöd in.
     // Bara datum. Bara den som bjöd in kan se (räkna) sina.
     match /invites/{inviter}/joined/{uid} {

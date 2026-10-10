@@ -630,6 +630,7 @@ export async function deleteEverything(password) {
   const shares = await loadShares(uid);
   [...shares.out, ...shares.in].forEach((s) => refs.push(doc(db, 'shares', s.id)));
   (await getDocs(query(collection(db, 'reports'), where('owner', '==', uid)))).forEach((d) => refs.push(d.ref));
+  try { (await getDocs(query(collection(db, 'feedback'), where('uid', '==', uid)))).forEach((d) => refs.push(d.ref)); } catch { /* ok */ }
   if (profile?.invitedBy) { try { await deleteDoc(joinedDoc(profile.invitedBy, uid)); } catch { /* ok */ } }
   try { (await getDocs(collection(db, 'invites', uid, 'joined'))).forEach((d) => refs.push(d.ref)); } catch { /* ok */ }
   // Utmaningar: ta bort egna, lämna andras.
