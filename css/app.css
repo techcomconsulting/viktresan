@@ -258,3 +258,6 @@ details[open] summary span { transform: rotate(45deg); }
   .rp-charts { display: grid !important; grid-template-columns: 1fr 1fr; gap: 16px; }
 }
 @media (max-width: 520px) { .rp-meta { text-align: left; } }
+
+/* Appikonen är ljus, så den får en tunn kant mot ljus bakgrund. */
+img[src*="icons/icon-192"] { box-shadow: 0 0 0 1px rgba(60, 40, 90, .12), 0 2px 6px rgba(60, 40, 90, .10); }
