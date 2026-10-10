@@ -1,13 +1,16 @@
 // Fotoanalys: fota maten, få en uppskattning av kalorier och näring.
 // Bilden görs liten i telefonen och skickas till vår server. Den sparas inte.
-import { app, db, doc, getDoc } from './firebase.js';
-import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js';
+import { auth, db, doc, getDoc } from './firebase.js';
+
+// Adressen till vår server hos Cloudflare (mappen worker/ i GitHub).
+export const AI_URL = '';
 
 let cfg = null;
 let cfgAt = 0;
 
 // Är fotoanalysen påslagen? (Admin slår på den.)
 export async function aiPhotoOn() {
+  if (!AI_URL) return false;
   if (cfg && Date.now() - cfgAt < 5 * 60000) return !!cfg.aiPhoto;
   try {
     const s = await getDoc(doc(db, 'config', 'app'));
@@ -35,17 +38,22 @@ export async function shrinkImage(file, max = 1024) {
 
 // Skicka bilden till servern. Svar: { isFood, note, items: [{name, grams, liquid, kcal, p, c, f}], left }
 export async function analyzeMeal(base64, mime, hint = '') {
-  const fn = httpsCallable(getFunctions(app, 'europe-west1'), 'analyzeMeal', { timeout: 70000 });
+  const known = (code, msg) => { const e = new Error(msg); e.code = code; return e; };
+  if (!AI_URL) throw known('unavailable', 'Fotoanalysen är inte klar än.');
+  let res, data;
   try {
-    const res = await fn({ image: base64, mime, hint });
-    return res.data;
-  } catch (ex) {
-    const code = String(ex.code || '').replace('functions/', '');
-    const known = ['resource-exhausted', 'failed-precondition', 'invalid-argument', 'unavailable', 'unauthenticated'];
-    const e = new Error(known.includes(code) ? ex.message : 'Fotoanalysen fungerar inte just nu. Prova igen senare.');
-    e.code = code;
-    throw e;
+    const token = await auth.currentUser.getIdToken();
+    res = await fetch(AI_URL.replace(/\/$/, '') + '/analyze', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: base64, mime, hint })
+    });
+    data = await res.json();
+  } catch {
+    throw known('unavailable', 'Kunde inte nå fotoanalysen. Kolla internet och prova igen.');
   }
+  if (!res.ok) throw known(data?.error?.code || 'unknown', data?.error?.message || 'Fotoanalysen fungerar inte just nu. Prova igen senare.');
+  return data;
 }
 
 // Gör om en rad från AI:n till en "vara" som appen kan logga.

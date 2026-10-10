@@ -1,0 +1,13 @@
+# Cloudflare Worker för Viktresan: fotoanalys av mat.
+# Cloudflare hämtar koden från GitHub (mappen worker/) och publicerar automatiskt.
+# AI-nyckeln läggs som hemlighet ANTHROPIC_API_KEY i Cloudflare, aldrig här.
+name = "viktresan-ai"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+[[kv_namespaces]]
+binding = "KV"
+id = "13120fccee834aeea934be12c526d7a4"
+
+[observability]
+enabled = true

@@ -86,7 +86,7 @@ export async function privacyView(el, ctx) {
       '<b>Google Firebase</b> (Google Cloud) sparar uppgifterna. Databasen ligger i <b>EU</b> (Belgien och Nederländerna). Google är vårt personuppgiftsbiträde. Om Google i undantagsfall hanterar uppgifter utanför EU skyddas de med EU:s standardavtal.',
       '<b>GitHub Pages</b> visar själva appen. GitHub kan se din IP-adress när du öppnar den.',
       'När du skannar eller söker en vara skickas bara <b>streckkoden eller sökordet</b> till Open Food Facts. Inga uppgifter om dig.',
-      'När du använder <b>Fota maten</b> skickas fotot via vår server i EU till AI-tjänsten <b>Anthropic</b> (USA) för analys. Inga uppgifter om dig följer med. Vi <b>sparar inte</b> bilden. Anthropic använder den inte för att träna AI och raderar den efter kort tid (högst 30 dagar). Överföringen skyddas med EU:s standardavtal. Fota bara maten, inte personer.',
+      'När du använder <b>Fota maten</b> skickas fotot via vår server (Cloudflare) till AI-tjänsten <b>Anthropic</b> (USA) för analys. Inga uppgifter om dig följer med. Vi <b>sparar inte</b> bilden. Anthropic använder den inte för att träna AI och raderar den efter kort tid (högst 30 dagar). Överföringen skyddas med EU:s standardavtal. Fota bara maten, inte personer.',
       'Skapar du en <b>länk till vården</b> sparas en kopia av rapporten. Den som har länken kan se den tills den slutar gälla eller du stänger av den.',
       'Klickar du på en <b>reklamlänk</b> under Tips och prylar kommer du till butikens webbplats. Butiken och reklamnätverket ser att klicket kom från Viktresan och kan spara en cookie. Vi skickar <b>inga uppgifter</b> om dig, din vikt eller din kost.'
     ]))}
