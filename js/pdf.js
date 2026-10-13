@@ -182,6 +182,14 @@ export async function reportPdf(r) {
     ], bRows, 10);
   }
 
+  // Läkemedel (bara namn och styrka)
+  if ((r.meds || []).length) {
+    heading('Läkemedel');
+    table([{ label: 'Läkemedel', x: M, w: 110 }, { label: 'Styrka', x: M + 110, w: CW - 110 }],
+      r.meds.map((m) => [{ t: m.name, bold: true }, { t: m.strength || '-' }]));
+    font(7); color(C.muted); text('Aktuella recept som personen själv har lagt in.', M, y - 1); y += 3;
+  }
+
   // Senaste mätningar
   const log = [...E].reverse().slice(0, 15);
   if (log.length) {

@@ -1,17 +1,19 @@
 // Rapport till vården: en sammanfattning av vikt, BMI, mått och blodvärden.
 // Kan visas i appen, sparas som PDF (skriv ut) eller delas med en tillfällig länk.
 import { db, auth, doc, getDoc, setDoc, deleteDoc, collection, getDocs, query, where, Timestamp, serverTimestamp } from './firebase.js';
-import { loadEntries } from './data.js';
+import { loadEntries, loadPrescriptions } from './data.js';
 import { loadBlood, BLOOD, bloodStatus, bloodInfo } from './blood.js';
 import { esc, fmt1, signed, isoDay, dFull, bmi, lineChart } from './ui.js';
 
 export const PERIODS = [['90', '3 månader'], ['180', '6 månader'], ['365', '1 år'], ['all', 'Allt']];
 
 // Samlar ihop det som ska med. Sparas som en "ögonblicksbild".
-export async function buildReport(uid, profile, email, period = '180') {
+export async function buildReport(uid, profile, email, period = '180', opts = {}) {
   const days = period === 'all' ? null : Number(period);
   const since = days ? Date.now() - days * 86400000 : 0;
-  const [entries, blood] = await Promise.all([loadEntries(uid).catch(() => []), loadBlood(uid).catch(() => [])]);
+  const [entries, blood, rx] = await Promise.all([loadEntries(uid).catch(() => []), loadBlood(uid).catch(() => []),
+    opts.meds ? loadPrescriptions(uid).catch(() => []) : []]);
+  const today = isoDay(new Date());
   const keep = (d) => d.getTime() >= since;
   return {
     v: 1,
@@ -24,7 +26,9 @@ export async function buildReport(uid, profile, email, period = '180') {
     entries: entries.filter((e) => keep(e.at)).map((e) => ({
       d: isoDay(e.at), weight: e.weight ?? null, waist: e.waist ?? null, hip: e.hip ?? null, arm: e.arm ?? null, thigh: e.thigh ?? null
     })),
-    blood: blood.filter((b) => keep(b.at)).map((b) => ({ d: isoDay(b.at), values: b.values || {}, note: b.note || '' }))
+    blood: blood.filter((b) => keep(b.at)).map((b) => ({ d: isoDay(b.at), values: b.values || {}, note: b.note || '' })),
+    // Bara namn och styrka på aktuella läkemedel (inga anteckningar, ingen logg).
+    meds: rx.filter((m) => !m.validTo || m.validTo >= today).map((m) => ({ name: m.name, strength: m.strength || '' }))
   };
 }
 
@@ -90,6 +94,11 @@ export function renderReport(r) {
     ${bloodRows.length ? `<section class="rp-sec"><h2>Blodvärden och blodtryck</h2>
       <table class="rp-table"><thead><tr><th>Värde</th><th class="rp-num">Senaste</th><th class="rp-num">Förra</th><th class="rp-num">Ungefär normalt</th></tr></thead>
       <tbody>${bloodRows.join('')}</tbody></table></section>` : ''}
+
+    ${(r.meds || []).length ? `<section class="rp-sec"><h2>Läkemedel</h2>
+      <table class="rp-table"><thead><tr><th>Läkemedel</th><th>Styrka</th></tr></thead>
+      <tbody>${r.meds.map((m) => `<tr><td><b>${esc(m.name)}</b></td><td>${esc(m.strength || '–')}</td></tr>`).join('')}</tbody></table>
+      <p class="rp-sub">Aktuella recept som personen själv har lagt in.</p></section>` : ''}
 
     ${log.length ? `<section class="rp-sec"><h2>Senaste mätningar</h2>
       <table class="rp-table"><thead><tr><th>Datum</th><th class="rp-num">Vikt</th><th class="rp-num">BMI</th><th class="rp-num">Midja</th><th class="rp-num">Höft</th><th class="rp-num">Arm</th><th class="rp-num">Lår</th></tr></thead>

@@ -2,6 +2,7 @@
 import { PERIODS, buildReport, renderReport, createReportLink, loadReportLinks, deleteReportLink, openReportLink, reportUrl } from '../report.js';
 import { esc, icon, backLink, openSheet, confirmSheet, toast, busy, errorText, dFull } from '../ui.js';
 import { reportPdf, offerPdf } from '../pdf.js';
+import { loadPrescriptions } from '../data.js';
 
 async function makePdf(btn, snap) {
   await busy(btn, async () => {
@@ -13,18 +14,21 @@ export async function reportView(el, ctx) {
   const { state } = ctx;
   let period = '180';
   let snap = null;
+  let meds = false;
+  const hasRx = (await loadPrescriptions(state.user.uid).catch(() => [])).length > 0;
 
   const draw = async () => {
-    snap = await buildReport(state.user.uid, state.profile, state.user.email, period);
+    snap = await buildReport(state.user.uid, state.profile, state.user.email, period, { meds });
     const links = await loadReportLinks().catch(() => []);
     const active = links.filter((l) => l.expires && l.expires > new Date());
     el.innerHTML = `<div class="screen">
       <div class="no-print stack-lg">
         ${backLink('#/profil', 'Profil')}
         <h1>Rapport till vården</h1>
-        <p style="font-size:16px;line-height:1.45">En sammanfattning av vikt, BMI, mått och blodvärden. Visa den vid besöket, spara som PDF eller skicka en länk.</p>
+        <p style="font-size:16px;line-height:1.45">En sammanfattning av vikt, BMI, mått, blodtryck och blodvärden. Visa den vid besöket, spara som PDF eller skicka en länk.</p>
         <div class="stack" style="gap:6px"><span style="font-size:14px;font-weight:600">Vilken period?</span>
           <div class="pills" role="group" aria-label="Period">${PERIODS.map(([k, l]) => `<button type="button" data-p="${k}" aria-pressed="${k === period}">${l}</button>`).join('')}</div></div>
+        ${hasRx ? `<label class="check" style="font-size:16px"><input type="checkbox" data-meds ${meds ? 'checked' : ''}> Ta med mina läkemedel <span class="muted small">(namn och styrka)</span></label>` : ''}
         <div class="btn-row">
           <button class="btn outline" data-pdf>${icon('copy', 18)}Skapa PDF</button>
           <button class="btn primary" data-link>${icon('send', 18)}Skapa länk</button>
@@ -40,6 +44,7 @@ export async function reportView(el, ctx) {
     </div>`;
 
     el.querySelectorAll('[data-p]').forEach((b) => b.addEventListener('click', () => { period = b.dataset.p; draw(); }));
+    el.querySelector('[data-meds]')?.addEventListener('change', (e) => { meds = e.target.checked; draw(); });
     el.querySelector('[data-pdf]').addEventListener('click', (e) => makePdf(e.currentTarget, snap));
     el.querySelector('[data-link]').addEventListener('click', () => askLink());
     el.querySelectorAll('[data-show]').forEach((b) => b.addEventListener('click', () => showLink(b.dataset.show)));
