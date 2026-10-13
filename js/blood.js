@@ -50,8 +50,8 @@ export async function loadBlood(owner) {
   });
 }
 
-export async function addBlood(date, values, note = '') {
-  const at = Timestamp.fromDate(new Date(date + 'T12:00:00'));
+export async function addBlood(date, values, note = '', when = null) {
+  const at = Timestamp.fromDate(when || new Date(date + 'T12:00:00'));
   await addDoc(col(uid()), { at, values, note: note || '', created: serverTimestamp() });
 }
 

@@ -5,6 +5,7 @@ import { syncMyScores } from '../challenges.js';
 import { loadEntries, addEntry, METRICS, createPost, notify, addPhoto, loadPeople, loadGroups, lastValues } from '../data.js';
 import { esc, fmt1, signed, parseNum, icon, dDay, tHM, dLong, toast, busy, openSheet, errorText, resizeImage, round1, confetti } from '../ui.js';
 import { progressInfo } from './overview.js';
+import { loadBlood, addBlood, BLOOD_LIMITS, bloodStatus } from '../blood.js';
 
 export async function measureView(el, ctx) {
   const { state } = ctx;
@@ -14,6 +15,9 @@ export async function measureView(el, ctx) {
   const prev = entries.length ? Object.fromEntries([['at', entries[entries.length - 1].at],
     ...METRICS.map(([k]) => [k, lastValues(entries, k).last?.[k] ?? null])]) : null;
   const now = new Date();
+  const BP = [['sys', 'Övre', 'mmHg'], ['dia', 'Nedre', 'mmHg'], ['pulse', 'Puls', 'slag/min']];
+  const bloodList = await loadBlood(uid).catch(() => []);
+  const lastBp = [...bloodList].reverse().find((b) => b.values?.sys != null || b.values?.pulse != null);
 
   el.innerHTML = `<div class="screen no-nav">
     <div class="between">
@@ -37,6 +41,16 @@ export async function measureView(el, ctx) {
             <div class="unit-input"><input id="m-${key}" name="${key}" inputmode="decimal" autocomplete="off" placeholder="–"><span>${unit}</span></div>
           </div>`).join('')}
       </div>
+      <div class="stack" style="gap:8px">
+        <div class="between" style="align-items:baseline"><h2 style="font-size:16px">Blodtryck <span class="muted" style="font-weight:500;font-size:14px">(valfritt)</span></h2>
+          ${lastBp ? `<span class="small muted">Förra: ${lastBp.values.sys ?? '–'}/${lastBp.values.dia ?? '–'}${lastBp.values.pulse ? ' · puls ' + lastBp.values.pulse : ''}</span>` : ''}</div>
+        <div class="card" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;padding:14px">
+          ${BP.map(([k, l, u]) => `<div class="stack" style="gap:4px"><label for="bp-${k}" style="font-size:14px;font-weight:700">${l}</label>
+            <div class="unit-input" style="width:100%;height:46px"><input id="bp-${k}" name="bp-${k}" inputmode="numeric" autocomplete="off" placeholder="–" maxlength="3"></div>
+            <span class="small muted" style="font-size:11px" data-bpst="${k}">${u}</span></div>`).join('')}
+        </div>
+        <p class="small muted" style="margin:0">Sparas också under <b>Blodvärden</b> och kommer med i <b>Rapport till vården</b>.</p>
+      </div>
       <p class="small muted row" style="gap:8px">${icon('info', 16)}Fyll i det du vill. Minst ett värde. Vikt i kg, mått i cm.</p>
       <p class="error hidden" role="alert"></p>
       <button class="btn primary block" type="submit">Spara mätning</button>
@@ -58,9 +72,41 @@ export async function measureView(el, ctx) {
     });
   });
 
+  BP.forEach(([k, , u]) => {
+    const input = form.querySelector(`[name=bp-${k}]`);
+    const st = form.querySelector(`[data-bpst=${k}]`);
+    input.addEventListener('input', () => {
+      const v = parseNum(input.value);
+      const s = bloodStatus(k, v);
+      st.textContent = s === 'high' ? 'Högt' : s === 'low' ? 'Lågt' : s === 'ok' ? 'Normalt' : u;
+      st.style.color = s === 'high' || s === 'low' ? 'var(--pink-ink)' : s === 'ok' ? '#2E7A5C' : '';
+    });
+  });
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     err.classList.add('hidden');
+    const bp = {};
+    for (const [k, l] of BP) {
+      const raw = form.querySelector(`[name=bp-${k}]`).value.trim();
+      if (!raw) continue;
+      const v = parseNum(raw);
+      const [lo, hi] = BLOOD_LIMITS[k];
+      if (v == null || v < lo || v > hi) {
+        err.textContent = `Kontrollera blodtrycket (${l.toLowerCase()}).`;
+        err.classList.remove('hidden'); form.querySelector(`[name=bp-${k}]`).focus(); return;
+      }
+      bp[k] = Math.round(v);
+    }
+    if ((bp.sys == null) !== (bp.dia == null)) {
+      err.textContent = 'Fyll i både övre och nedre blodtryck.';
+      err.classList.remove('hidden'); form.querySelector(`[name=bp-${bp.sys == null ? 'sys' : 'dia'}]`).focus(); return;
+    }
+    if (bp.sys != null && bp.sys <= bp.dia) {
+      err.textContent = 'Övre blodtrycket ska vara högre än det nedre.';
+      err.classList.remove('hidden'); form.querySelector('[name=bp-sys]').focus(); return;
+    }
+    const hasBp = Object.keys(bp).length > 0;
     const vals = {};
     for (const [key, label] of METRICS) {
       const raw = form.querySelector(`[name=${key}]`).value.trim();
@@ -75,6 +121,14 @@ export async function measureView(el, ctx) {
       }
       vals[key] = round1(v);
     }
+    if (METRICS.every(([k]) => vals[k] == null) && hasBp) {
+      // Bara blodtryck den här gången.
+      await busy(form.querySelector('[type=submit]'), async () => {
+        try { await addBlood(null, bp, '', new Date()); toast('Blodtrycket är sparat.'); ctx.go('/blodvarden'); }
+        catch (ex) { err.textContent = errorText(ex); err.classList.remove('hidden'); }
+      });
+      return;
+    }
     if (METRICS.every(([k]) => vals[k] == null)) {
       err.textContent = 'Fyll i minst ett värde.';
       err.classList.remove('hidden');
@@ -84,6 +138,7 @@ export async function measureView(el, ctx) {
     await busy(form.querySelector('[type=submit]'), async () => {
       try {
         const saved = await addEntry(uid, state.profile, entries, vals);
+        if (hasBp) await addBlood(null, bp, '', new Date());
         if (state.profile.startWeight == null) state.profile.startWeight = saved.startWeight;
         const start = state.profile.startWeight;
         let milestone = null;
