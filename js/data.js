@@ -465,6 +465,38 @@ export async function addTreatment(uid, data) {
 export async function deleteTreatment(uid, id) {
   invalidate('treatments'); await deleteDoc(subDoc(uid, 'treatments', id)); }
 
+// ---------- Recept på läkemedel ----------
+
+export async function loadPrescriptions(uid) {
+  try {
+    const s = await fastDocs(query(sub(uid, 'prescriptions'), orderBy('validTo', 'asc')), 'prescriptions');
+    return s.docs.map((d) => ({ id: d.id, ...d.data() }));
+  } catch { return []; }
+}
+export async function savePrescription(uid, data, id = null) {
+  invalidate('prescriptions');
+  if (id) await setDoc(subDoc(uid, 'prescriptions', id), { ...data, updatedAt: serverTimestamp() }, { merge: true });
+  else await addDoc(sub(uid, 'prescriptions'), { ...data, createdAt: serverTimestamp() });
+}
+export async function deletePrescription(uid, id) {
+  invalidate('prescriptions'); await deleteDoc(subDoc(uid, 'prescriptions', id)); }
+
+// Påminn en gång om ett recept går ut inom 30 dagar (högst en koll per dag).
+export async function checkPrescriptions(uid) {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const key = 'vt-rx-check';
+    if (localStorage.getItem(key) === today) return;
+    localStorage.setItem(key, today);
+    const soon = new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10);
+    for (const r of await loadPrescriptions(uid)) {
+      if (!r.validTo || r.validTo < today || r.validTo > soon || r.warned === r.validTo) continue;
+      await notify(uid, `Receptet på ${r.name} går ut snart. Prata med din läkare om du behöver ett nytt.`, '#/behandling');
+      await savePrescription(uid, { warned: r.validTo }, r.id);
+    }
+  } catch { /* inte viktigt */ }
+}
+
 // ---------- Personliga mål ----------
 
 export async function loadGoals(uid) {
@@ -512,7 +544,7 @@ export async function markRead(items) {
 
 // Allt som sparas under en användare.
 const USER_COLS = ['weights', 'measures', 'summary', 'photos', 'treatments', 'goals', 'public', 'groups',
-  'foodlog', 'water', 'workouts', 'foodfav', 'savedmeals', 'blood'];
+  'foodlog', 'water', 'workouts', 'foodfav', 'savedmeals', 'blood', 'prescriptions'];
 
 // Ändra siffran när villkoren ändras. Då får alla godkänna igen.
 export const TERMS_VERSION = 2;

@@ -825,6 +825,10 @@ const NEWS = [
     ['send', 'Skicka en <b>länk</b> via sms eller Messenger'], ['users', 'Det är lättare att gå ner i vikt <b>tillsammans</b>'],
     ['bell', 'Du får en <b>notis</b> när din vän har gått med'], ['lock', 'Ni väljer själva vad ni <b>delar</b>']
   ], note: 'Du hittar det under Profil.' },
+  { id: 'vt-news-recept', title: 'Spara dina recept!', go: '/behandling', rows: [
+    ['pill', 'Lägg in <b>recept</b> på dina läkemedel'], ['bell', 'Få en <b>notis</b> innan receptet går ut'],
+    ['check', 'Håll koll på hur många <b>uttag</b> som är kvar'], ['lock', 'Bara <b>du</b> ser dina recept']
+  ], note: 'Du hittar det under Profil → Behandling och recept.' },
   { id: 'vt-tips-dela-1', chip: 'TIPS', title: 'Dela Viktresan med vänner!', invite: true, rows: [
     ['send', 'Skicka appen till <b>vänner och familj</b>'], ['users', 'Det går lättare att gå ner i vikt <b>tillsammans</b>'],
     ['sparkle', 'Appen är <b>gratis</b> att använda'], ['sparkle', 'Få <b>märken</b> när 5 och 15 vänner har gått med']
