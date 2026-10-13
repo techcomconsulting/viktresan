@@ -7,6 +7,7 @@ import { maybeShowNews } from './kost.js';
 import { isoDay } from '../ui.js';
 import { forecast } from '../milestones.js';
 import { badgesCard, checkNewBadges } from './badges.js';
+import { renderMedsToday } from '../meds.js';
 import { syncMyScores } from '../challenges.js';
 import { challengeCard } from './challenges.js';
 import { esc, fmt1, signed, icon, bmi, bmiScale, dDay, dShort, round1, avatar } from '../ui.js';
@@ -95,6 +96,7 @@ export async function overviewView(el, ctx) {
   if (!last) {
     el.innerHTML = `<div class="screen">${header}
       ${installBanner()}
+      <div data-meds></div>
       ${kostCard}
       <div class="card stack-lg">
         <h2>${entries.length ? 'Lägg in din vikt' : 'Dags för första mätningen'}</h2>
@@ -102,6 +104,7 @@ export async function overviewView(el, ctx) {
         <a class="btn primary block" href="#/matning">${entries.length ? 'Ny mätning' : 'Gör första mätningen'}</a>
       </div></div>`;
     wireInstallBanner(el);
+    renderMedsToday(el.querySelector('[data-meds]'), state.user.uid);
     return;
   }
 
@@ -147,6 +150,7 @@ export async function overviewView(el, ctx) {
       </a>
     </div>
     ${chCard}
+    <div data-meds></div>
     ${kostCard}
     ${badgesCard(entries, p)}
     <a class="btn outline block" href="#/historik">${icon('chart', 20)}Historik och grafer</a>
@@ -154,4 +158,5 @@ export async function overviewView(el, ctx) {
     ${installBanner()}
   </div>`;
   wireInstallBanner(el);
+  renderMedsToday(el.querySelector('[data-meds]'), state.user.uid);
 }

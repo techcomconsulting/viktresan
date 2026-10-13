@@ -827,7 +827,7 @@ const NEWS = [
   ], note: 'Du hittar det under Profil.' },
   { id: 'vt-news-recept', title: 'Spara dina recept!', go: '/behandling', rows: [
     ['pill', 'Lägg in <b>recept</b> på dina läkemedel'], ['bell', 'Få en <b>notis</b> innan receptet går ut'],
-    ['check', 'Håll koll på hur många <b>uttag</b> som är kvar'], ['lock', 'Bara <b>du</b> ser dina recept']
+    ['check', '<b>Kryssa i</b> när du har tagit din medicin'], ['lock', 'Bara <b>du</b> ser dina recept']
   ], note: 'Du hittar det under Profil → Behandling och recept.' },
   { id: 'vt-tips-dela-1', chip: 'TIPS', title: 'Dela Viktresan med vänner!', invite: true, rows: [
     ['send', 'Skicka appen till <b>vänner och familj</b>'], ['users', 'Det går lättare att gå ner i vikt <b>tillsammans</b>'],

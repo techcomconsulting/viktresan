@@ -544,7 +544,7 @@ export async function markRead(items) {
 
 // Allt som sparas under en användare.
 const USER_COLS = ['weights', 'measures', 'summary', 'photos', 'treatments', 'goals', 'public', 'groups',
-  'foodlog', 'water', 'workouts', 'foodfav', 'savedmeals', 'blood', 'prescriptions'];
+  'foodlog', 'water', 'workouts', 'foodfav', 'savedmeals', 'blood', 'prescriptions', 'medlog'];
 
 // Ändra siffran när villkoren ändras. Då får alla godkänna igen.
 export const TERMS_VERSION = 2;

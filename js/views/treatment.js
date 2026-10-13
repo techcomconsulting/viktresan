@@ -1,5 +1,6 @@
 // Behandling och medicin: bara anteckningar, inga råd.
 import { loadTreatments, addTreatment, deleteTreatment, loadPrescriptions, savePrescription, deletePrescription } from '../data.js';
+import { SLOTS, FREQS, WEEKDAYS, scheduleText, renderMedsToday } from '../meds.js';
 import { esc, icon, backLink, openSheet, confirmSheet, toast, busy, errorText, isoDay, toDate } from '../ui.js';
 
 const MON = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
@@ -39,7 +40,8 @@ function rxList(items) {
     return `<button class="card stack" data-rx="${r.id}" style="border:0;text-align:left;cursor:pointer;gap:8px;font:inherit;color:inherit">
       <div class="between" style="align-items:flex-start;gap:8px">
         <span class="stack" style="gap:2px"><b style="font-size:17px">${esc(r.name)}${r.strength ? ' ' + esc(r.strength) : ''}</b>
-          ${r.dosage ? `<span class="small muted">${esc(r.dosage)}</span>` : ''}</span>
+          ${r.dosage ? `<span class="small muted">${esc(r.dosage)}</span>` : ''}
+          ${r.schedule?.freq ? `<span class="small" style="color:var(--accent-dark);font-weight:600">⏰ ${esc(scheduleText(r.schedule))}</span>` : ''}</span>
         <span class="chip ${cls}" style="flex-shrink:0">${st}</span></div>
       <div class="row small" style="gap:14px;flex-wrap:wrap">
         <span><span class="muted">Giltigt till</span> <b>${dTxt(r.validTo)}</b></span>
@@ -51,6 +53,7 @@ function rxList(items) {
 
 function openRxSheet(uid, r, onDone) {
   const e = r || {};
+  const sch = { freq: e.schedule?.freq || '', slots: [...(e.schedule?.slots || [])], weekday: e.schedule?.weekday ?? 0, start: e.schedule?.start || '' };
   const s = openSheet(`
     <h2>${r ? 'Ändra recept' : 'Nytt recept'}</h2>
     <div class="field"><label for="rn">Läkemedel</label><input class="input" id="rn" maxlength="80" value="${esc(e.name || '')}" placeholder="t.ex. Metformin"></div>
@@ -59,6 +62,12 @@ function openRxSheet(uid, r, onDone) {
       <div class="field"><label for="rr">Uttag kvar (valfritt)</label><input class="input" id="rr" inputmode="numeric" maxlength="3" value="${e.refills ?? ''}" placeholder="t.ex. 3"></div>
     </div>
     <div class="field"><label for="rd">Så tar jag det (valfritt)</label><input class="input" id="rd" maxlength="100" value="${esc(e.dosage || '')}" placeholder="t.ex. 1 tablett morgon och kväll"></div>
+    <div class="stack" style="gap:8px"><span style="font-size:14px;font-weight:600">Hur ofta?</span>
+      <div class="pills" role="group" aria-label="Hur ofta" style="flex-wrap:wrap;overflow:visible">${FREQS.map(([k, l]) => `<button type="button" data-freq="${k}" aria-pressed="${k === sch.freq}">${l}</button>`).join('')}</div>
+      <div data-wd class="field ${sch.freq === 'weekly' ? '' : 'hidden'}"><label for="rw">Vilken dag?</label><select class="input" id="rw">${WEEKDAYS.map((w, i) => `<option value="${i}" ${i === (sch.weekday ?? 0) ? 'selected' : ''}>${w}</option>`).join('')}</select></div>
+      <div data-slots class="stack ${sch.freq && sch.freq !== 'asNeeded' ? '' : 'hidden'}" style="gap:6px"><span class="small muted">När på dagen? (välj en eller flera)</span>
+        <div class="pills" role="group" aria-label="När på dagen" style="flex-wrap:wrap;overflow:visible">${SLOTS.map(([k, l, e]) => `<button type="button" data-slot="${k}" aria-pressed="${sch.slots.includes(k)}">${e} ${l}</button>`).join('')}</div></div>
+    </div>
     <div class="grid2">
       <div class="field"><label for="rf">Utfärdat</label><input class="input" id="rf" type="date" value="${e.issued || isoDay(new Date())}"></div>
       <div class="field"><label for="rt">Giltigt till</label><input class="input" id="rt" type="date" value="${e.validTo || inYear()}"></div>
@@ -70,6 +79,19 @@ function openRxSheet(uid, r, onDone) {
     <div class="btn-row">${r ? '<button class="btn danger-outline" data-del>Ta bort</button>' : '<button class="btn" data-close>Avbryt</button>'}<button class="btn primary" data-save>Spara</button></div>
     <p class="small muted" style="margin:0">Tips: du ser alla dina recept på 1177.se eller i apotekets app.</p>`, 'Recept');
   const v = (id) => s.el.querySelector('#' + id).value.trim();
+  s.el.querySelectorAll('[data-freq]').forEach((b) => b.addEventListener('click', () => {
+    sch.freq = sch.freq === b.dataset.freq ? '' : b.dataset.freq;
+    if (sch.freq && sch.freq !== 'asNeeded' && !sch.slots.length) sch.slots = ['morning'];
+    s.el.querySelectorAll('[data-freq]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.freq === sch.freq)));
+    s.el.querySelectorAll('[data-slot]').forEach((x) => x.setAttribute('aria-pressed', String(sch.slots.includes(x.dataset.slot))));
+    s.el.querySelector('[data-wd]').classList.toggle('hidden', sch.freq !== 'weekly');
+    s.el.querySelector('[data-slots]').classList.toggle('hidden', !sch.freq || sch.freq === 'asNeeded');
+  }));
+  s.el.querySelectorAll('[data-slot]').forEach((b) => b.addEventListener('click', () => {
+    const k = b.dataset.slot;
+    sch.slots = sch.slots.includes(k) ? sch.slots.filter((x) => x !== k) : [...sch.slots, k];
+    b.setAttribute('aria-pressed', String(sch.slots.includes(k)));
+  }));
   s.el.querySelector('[data-save]').addEventListener('click', async (ev) => {
     const name = v('rn');
     if (!name) { s.el.querySelector('.error').classList.remove('hidden'); return; }
@@ -78,7 +100,8 @@ function openRxSheet(uid, r, onDone) {
       try {
         await savePrescription(uid, {
           name, strength: v('rs'), dosage: v('rd'), refills, issued: v('rf') || isoDay(new Date()),
-          validTo: v('rt') || inYear(), prescriber: v('rp'), note: v('ro')
+          validTo: v('rt') || inYear(), prescriber: v('rp'), note: v('ro'),
+          schedule: sch.freq ? { freq: sch.freq, slots: sch.freq === 'asNeeded' ? [] : sch.slots, weekday: Number(v('rw')) || 0, start: sch.start || isoDay(new Date()) } : null
         }, r?.id);
         s.close(); toast('Receptet är sparat.'); onDone();
       } catch (ex) { toast(errorText(ex)); }
@@ -110,6 +133,7 @@ export async function treatmentView(el, ctx) {
         <span class="chip" style="background:#fff;box-shadow:var(--shadow)">${icon('lock', 14, 2)}Privat</span>
       </div>
       <div class="banner neutral" style="font-size:14px">Här skriver du bara ner. Appen ger inga medicinska råd. Frågor om dos tar du med din läkare.</div>
+      <div data-meds></div>
       <div class="seg" role="group" aria-label="Visa">
         <button type="button" data-tab="notes" aria-pressed="${tab === 'notes'}">Anteckningar</button>
         <button type="button" data-tab="rx" aria-pressed="${tab === 'rx'}">Mina recept${rx.length ? ` (${rx.length})` : ''}</button>
@@ -120,8 +144,9 @@ export async function treatmentView(el, ctx) {
         <p class="small muted">Delas bara om du själv slår på det under Delning.</p>` : `
         <button class="btn primary block" data-addrx>${icon('plus', 20, 2.2)}Lägg till recept</button>
         ${rxList(rx)}
-        <p class="small muted">Du får en notis 30 dagar innan ett recept går ut. Recepten är bara för dig och delas inte.</p>`}
+        <p class="small muted">Välj <b>Hur ofta</b> på ett recept, så kan du kryssa i när du tagit det. Du får en notis 30 dagar innan ett recept går ut. Recepten är bara för dig och delas inte.</p>`}
     </div>`;
+    renderMedsToday(el.querySelector('[data-meds]'), uid, { rx });
     el.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => { tab = b.dataset.tab; draw(); }));
     const reloadRx = async () => { rx = await loadPrescriptions(uid); draw(); };
     el.querySelector('[data-addrx]')?.addEventListener('click', () => openRxSheet(uid, null, reloadRx));
