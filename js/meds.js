@@ -2,6 +2,7 @@
 import { db, doc, getDoc, setDoc } from './firebase.js';
 import { loadPrescriptions } from './data.js';
 import { esc, icon, isoDay, toast, errorText } from './ui.js';
+import { markSlotDone } from './push.js';
 
 export const SLOTS = [['morning', 'Morgon', '🌅'], ['noon', 'Lunch', '☀️'], ['evening', 'Kväll', '🌆'], ['night', 'Natt', '🌙']];
 export const FREQS = [['daily', 'Varje dag'], ['everyOther', 'Varannan dag'], ['weekly', 'En gång i veckan'], ['asNeeded', 'Vid behov']];
@@ -65,8 +66,12 @@ export async function renderMedsToday(box, uid, opts = {}) {
       const was = taken[k];
       if (was) delete taken[k]; else taken[k] = Date.now();
       draw();
-      try { await setDoc(logRef(uid, iso), { taken }); }
-      catch (ex) { if (was) taken[k] = was; else delete taken[k]; draw(); toast(errorText(ex)); }
+      try {
+        await setDoc(logRef(uid, iso), { taken });
+        // Säg till servern om allt för den tiden är taget, så kommer ingen påminnelse.
+        const slot = rows.find((x) => x.key === k).slot;
+        markSlotDone(slot, rows.filter((x) => x.slot === slot).every((x) => taken[x.key]));
+      } catch (ex) { if (was) taken[k] = was; else delete taken[k]; draw(); toast(errorText(ex)); }
     }));
   };
   draw();

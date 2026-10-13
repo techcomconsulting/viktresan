@@ -1,7 +1,10 @@
-// Viktresan AI – Cloudflare Worker.
+// Viktresan server – Cloudflare Worker.
 // POST /analyze  – appen skickar ett foto av maten, AI:n (Claude) uppskattar kalorier och näring.
 // GET  /stats    – antal foton (bara för admin).
+// POST /push/...  – påminnelser i telefonen (se push.js). Körs också var 5:e minut.
 // Bilden sparas inte. Inloggningen kontrolleras med Firebase-token.
+
+import { pushApi, runReminders } from './push.js';
 
 const PROJECT = 'viktresan-25170';
 const MODEL = 'claude-haiku-4-5-20251001';
@@ -170,12 +173,27 @@ export default {
   async fetch(req, env) {
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors(req) });
     const url = new URL(req.url);
-    if (url.pathname === '/' && req.method === 'GET') return json(req, { ok: true, service: 'viktresan-ai' });
+    if (url.pathname === '/' && req.method === 'GET') return json(req, { ok: true, service: 'viktresan-server' });
     const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
     const uid = await verifyToken(token).catch(() => null);
     if (!uid) return fail(req, 401, 'unauthenticated', 'Du måste vara inloggad.');
     if (url.pathname === '/analyze' && req.method === 'POST') return analyze(req, env, uid, token);
     if (url.pathname === '/stats' && req.method === 'GET') return stats(req, env, uid, token);
+    if (url.pathname.startsWith('/push/') && req.method === 'POST') {
+      let data = {};
+      try { data = await req.json(); } catch { /* tomt */ }
+      try {
+        const out = await pushApi(url.pathname, data, env, uid);
+        if (!out) return fail(req, 404, 'not-found', 'Finns inte.');
+        return out.error ? fail(req, 400, 'invalid-argument', out.error) : json(req, out);
+      } catch (e) {
+        console.error('push-api', String(e));
+        return fail(req, 500, 'internal', 'Något gick fel med påminnelserna.');
+      }
+    }
     return fail(req, 404, 'not-found', 'Finns inte.');
+  },
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(runReminders(env, new Date(event.scheduledTime)).then((r) => console.log('påminnelser', JSON.stringify(r))));
   }
 };

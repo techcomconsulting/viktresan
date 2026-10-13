@@ -9,3 +9,6 @@ export const firebaseConfig = {
   projectId: "viktresan-25170",
   appId: "1:852549237443:web:f766b8249e6ec340f30076"
 };
+
+// Vår server hos Cloudflare (mappen worker/ i GitHub): fotoanalys och påminnelser.
+export const SERVER_URL = '';

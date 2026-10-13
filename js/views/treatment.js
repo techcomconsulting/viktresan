@@ -1,6 +1,7 @@
 // Behandling och medicin: bara anteckningar, inga råd.
-import { loadTreatments, addTreatment, deleteTreatment, loadPrescriptions, savePrescription, deletePrescription } from '../data.js';
+import { loadTreatments, addTreatment, deleteTreatment, loadPrescriptions, savePrescription, deletePrescription, saveProfile } from '../data.js';
 import { SLOTS, FREQS, WEEKDAYS, scheduleText, renderMedsToday } from '../meds.js';
+import { DEFAULT_TIMES, pushSupport, pushPermission, enablePush, disablePush, syncSchedule, testPush } from '../push.js';
 import { esc, icon, backLink, openSheet, confirmSheet, toast, busy, errorText, isoDay, toDate } from '../ui.js';
 
 const MON = ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
@@ -119,6 +120,65 @@ function openRxSheet(uid, r, onDone) {
   });
 }
 
+// ---------- Påminnelser i telefonen ----------
+function pushCard(p) {
+  const sup = pushSupport();
+  if (sup === 'server') return '';
+  const on = !!p.medPush && pushPermission() === 'granted';
+  const t = { ...DEFAULT_TIMES, ...(p.medTimes || {}) };
+  return `<section class="card stack" style="gap:12px">
+    <div class="row" style="gap:12px"><span style="font-size:24px">📲</span>
+      <span class="grow stack" style="gap:2px"><b>Påminnelser i telefonen</b><span class="small muted">${on ? 'På. Du får en notis när det är dags.' : 'Få en notis när det är dags att ta medicinen.'}</span></span>
+      ${sup === 'ok' ? `<button type="button" class="toggle" data-push aria-pressed="${on}" aria-label="Påminnelser"></button>` : ''}</div>
+    ${sup === 'install' ? '<div class="banner neutral" style="font-size:14px">På iPhone måste appen ligga på <b>hemskärmen</b> för att få påminnelser. Tryck på Dela-knappen i Safari och välj <b>Lägg till på hemskärmen</b>. Öppna sedan appen därifrån.</div>' : ''}
+    ${sup === 'no' ? '<p class="small muted" style="margin:0">Den här webbläsaren kan tyvärr inte visa påminnelser.</p>' : ''}
+    ${on ? `<div class="stack" style="gap:6px"><span class="small muted">Vilken tid?</span>
+      <div class="stack" style="gap:6px">${SLOTS.map(([k, l, e]) => `<label class="between" style="gap:8px;font-size:15px;font-weight:600"><span>${e} ${l}</span>
+        <input class="input" type="time" step="300" data-time="${k}" value="${t[k]}" lang="sv-SE" style="height:44px;width:150px;padding:0 10px"></label>`).join('')}</div>
+      <button type="button" class="btn ghost sm" data-pushtest style="align-self:flex-start;padding:0">Skicka en testnotis</button></div>` : ''}
+    <p class="small muted" style="margin:0;font-size:12px">Notisen säger bara att det är dags. Namnet på medicinen skickas aldrig.</p>
+  </section>`;
+}
+
+function wirePushCard(el, ctx, getRx, redraw) {
+  const p = ctx.state.profile;
+  const uid = ctx.state.user.uid;
+  const t = () => ({ ...DEFAULT_TIMES, ...(p.medTimes || {}) });
+  el.querySelector('[data-push]')?.addEventListener('click', async (e) => {
+    const b = e.currentTarget;
+    const turnOn = b.getAttribute('aria-pressed') !== 'true';
+    b.disabled = true;
+    try {
+      if (turnOn) {
+        if (!getRx().some((r) => r.schedule?.freq && r.schedule.freq !== 'asNeeded')) toast('Tips: välj "Hur ofta" på ett recept, annars kommer inga påminnelser.');
+        await enablePush(getRx(), t());
+        await saveProfile(uid, { medPush: true }); p.medPush = true;
+        toast('Påminnelser är på.');
+      } else {
+        await disablePush();
+        await saveProfile(uid, { medPush: false }); p.medPush = false;
+        toast('Påminnelser är av.');
+      }
+    } catch (ex) { toast(ex.message || errorText(ex)); }
+    b.disabled = false;
+    redraw();
+  });
+  el.querySelectorAll('[data-time]').forEach((inp) => inp.addEventListener('change', async () => {
+    const v = inp.value;
+    if (!/^\d{2}:\d{2}$/.test(v)) return;
+    const [h, m] = v.split(':').map(Number);
+    const r = `${String(h).padStart(2, '0')}:${String(Math.round(m / 5) * 5 % 60).padStart(2, '0')}`;
+    inp.value = r;
+    p.medTimes = { ...t(), [inp.dataset.time]: r };
+    try { await saveProfile(uid, { medTimes: p.medTimes }); await syncSchedule(getRx(), p.medTimes); toast('Tiden är sparad.'); } catch (ex) { toast(ex.message || errorText(ex)); }
+  }));
+  el.querySelector('[data-pushtest]')?.addEventListener('click', async (e) => {
+    await busy(e.currentTarget, async () => {
+      try { const r = await testPush(); toast(r.devices ? 'Testnotis skickad!' : 'Hittade ingen telefon. Slå av och på igen.'); } catch (ex) { toast(ex.message); }
+    });
+  });
+}
+
 export async function treatmentView(el, ctx) {
   const uid = ctx.state.user.uid;
   let [items, rx] = await Promise.all([loadTreatments(uid), loadPrescriptions(uid)]);
@@ -144,11 +204,16 @@ export async function treatmentView(el, ctx) {
         <p class="small muted">Delas bara om du själv slår på det under Delning.</p>` : `
         <button class="btn primary block" data-addrx>${icon('plus', 20, 2.2)}Lägg till recept</button>
         ${rxList(rx)}
+        ${pushCard(ctx.state.profile)}
         <p class="small muted">Välj <b>Hur ofta</b> på ett recept, så kan du kryssa i när du tagit det. Du får en notis 30 dagar innan ett recept går ut. Recepten är bara för dig och delas inte.</p>`}
     </div>`;
     renderMedsToday(el.querySelector('[data-meds]'), uid, { rx });
+    wirePushCard(el, ctx, () => rx, draw);
     el.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => { tab = b.dataset.tab; draw(); }));
-    const reloadRx = async () => { rx = await loadPrescriptions(uid); draw(); };
+    const reloadRx = async () => {
+      rx = await loadPrescriptions(uid); draw();
+      if (ctx.state.profile.medPush) syncSchedule(rx, ctx.state.profile.medTimes).catch(() => toast('Kunde inte uppdatera påminnelserna.'));
+    };
     el.querySelector('[data-addrx]')?.addEventListener('click', () => openRxSheet(uid, null, reloadRx));
     el.querySelectorAll('[data-rx]').forEach((b) => b.addEventListener('click', () => openRxSheet(uid, rx.find((x) => x.id === b.dataset.rx), reloadRx)));
     el.querySelector('[data-add]')?.addEventListener('click', openAdd);

@@ -1,9 +1,7 @@
 // Fotoanalys: fota maten, få en uppskattning av kalorier och näring.
 // Bilden görs liten i telefonen och skickas till vår server. Den sparas inte.
 import { auth, db, doc, getDoc } from './firebase.js';
-
-// Adressen till vår server hos Cloudflare (mappen worker/ i GitHub).
-export const AI_URL = '';
+import { SERVER_URL as AI_URL } from './config.js';
 
 let cfg = null;
 let cfgAt = 0;
