@@ -202,6 +202,17 @@ document.addEventListener('click', (e) => { const a = e.target.closest && e.targ
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('sw.js').catch(() => {});
+  // När en ny version av appen är nedladdad: ladda om en gång, så att allt är nytt.
+  if (navigator.serviceWorker.controller) {
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (reloaded) return;
+      reloaded = true;
+      const busyForm = document.querySelector('.sheet, form input:focus, textarea:focus');
+      if (busyForm) return; // stör inte mitt i något, nästa start får nya versionen
+      location.reload();
+    });
+  }
 }
 
 export { esc };

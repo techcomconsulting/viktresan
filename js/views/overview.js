@@ -66,7 +66,8 @@ export async function overviewView(el, ctx) {
   const { state } = ctx;
   const uid = state.user.uid;
   const p = state.profile;
-  const [entries, feed, food] = await Promise.all([loadEntries(uid), loadFeed(uid, 1).catch(() => []), loadDay(uid, isoDay(new Date())).catch(() => [])]);
+  // Bara det viktigaste väntar vi på. Utmaningar och senaste inlägg fylls i efteråt.
+  const [entries, food] = await Promise.all([loadEntries(uid), loadDay(uid, isoDay(new Date())).catch(() => [])]);
   const FT = dayTotals(food);
   const kGoal = p.kcalGoal || null;
   const kostCard = `<a class="card row" href="#/kost" style="text-decoration:none;color:inherit;padding:14px 16px">
@@ -76,10 +77,16 @@ export async function overviewView(el, ctx) {
       ${food.length ? `<span class="small muted">${fmt1(FT.p)} g protein</span>` : ''}</span>
     ${icon('right', 18, 2)}</a>`;
   setTimeout(async () => { if (!(await checkNewBadges(ctx, entries).catch(() => false))) maybeShowNews(ctx); }, 600);
-  const chList = await syncMyScores(entries, p.firstName).catch(() => []);
-  const chCard = await challengeCard(chList, uid).catch(() => '');
-  const latest = feed[0] || null;
-  const latestCard = latest ? await getCard(latest.owner) : null;
+  const fillLater = () => {
+    const chBox = el.querySelector('[data-ch]');
+    const postBox = el.querySelector('[data-latest]');
+    syncMyScores(entries, p.firstName).catch(() => []).then((list) => challengeCard(list, uid)).then((h) => { if (chBox && h) chBox.innerHTML = h; }).catch(() => {});
+    if (postBox) loadFeed(uid, 1).then(async (feed) => {
+      const latest = feed[0];
+      if (!latest) return;
+      postBox.innerHTML = latestPost(latest, await getCard(latest.owner).catch(() => null));
+    }).catch(() => {});
+  };
   const wEntries = withWeight(entries);
   const last = wEntries[wEntries.length - 1];
   const prev = wEntries[wEntries.length - 2];
@@ -149,14 +156,15 @@ export async function overviewView(el, ctx) {
         <span class="small muted">${start ? signed((total / start) * 100, '%') : ''} sedan ${esc(dShort(wEntries[0].at))}</span>
       </a>
     </div>
-    ${chCard}
+    <div data-ch></div>
     <div data-meds></div>
     ${kostCard}
     ${badgesCard(entries, p)}
     <a class="btn outline block" href="#/historik">${icon('chart', 20)}Historik och grafer</a>
-    ${latest ? latestPost(latest, latestCard) : ''}
+    <div data-latest></div>
     ${installBanner()}
   </div>`;
   wireInstallBanner(el);
   renderMedsToday(el.querySelector('[data-meds]'), state.user.uid);
+  fillLater();
 }

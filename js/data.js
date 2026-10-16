@@ -32,12 +32,14 @@ const isMe = (uid) => auth.currentUser && auth.currentUser.uid === uid;
 
 // Hämtar det vanligaste i bakgrunden direkt efter inloggning,
 // så att menyerna öppnas snabbt redan första gången.
+// Bilder hämtas inte här (de är stora). De laddas först när man öppnar Bilder.
+// Väntar en kort stund, så att startsidan hinner laddas först.
 export function prefetch(uid) {
   const jobs = [
-    () => loadEntries(uid), () => loadNotifications(uid), () => loadShares(uid), () => loadGoals(uid),
-    () => migrateOldPosts(uid).then(() => loadMyPosts(uid)), () => loadGroups(uid), () => loadTreatments(uid), () => loadPhotos(uid)
+    () => loadNotifications(uid), () => loadShares(uid), () => loadGoals(uid),
+    () => migrateOldPosts(uid).then(() => loadMyPosts(uid)), () => loadGroups(uid), () => loadTreatments(uid)
   ];
-  jobs.forEach((j) => j().catch(() => {}));
+  setTimeout(() => jobs.forEach((j) => j().catch(() => {})), 1500);
 }
 
 const userDoc = (uid) => doc(db, 'users', uid);

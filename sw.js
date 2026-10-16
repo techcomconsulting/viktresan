@@ -1,6 +1,6 @@
 // Gör att appen startar snabbt och kan installeras på hemskärmen.
 // Byt versionen när du laddar upp en ny version av appen.
-const VERSION = 'viktresan-v55';
+const VERSION = 'viktresan-v56';
 const FILES = [
   './', './index.html', './css/app.css', './manifest.webmanifest',
   './js/app.js', './js/install.js', './js/brand.js', './js/invite.js', './js/blood.js', './js/report.js', './js/pdf.js', './js/milestones.js', './js/challenges.js', './js/views/badges.js', './js/views/admin.js', './js/views/challenges.js', './js/views/report.js', './js/views/blood.js', './js/tips.js', './js/views/tips.js', './js/food.js', './js/ai.js', './js/feedback.js', './js/meds.js', './js/push.js', './js/scanner.js', './js/views/kost.js', './data/livsmedel.json', './js/config.js', './js/firebase.js', './js/data.js', './js/ui.js',
@@ -10,28 +10,36 @@ const FILES = [
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(FILES.map((f) => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(caches.keys()
-    .then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k))))
+    .then((keys) => Promise.all(keys.filter((k) => k !== VERSION && k !== 'firebase-sdk').map((k) => caches.delete(k))))
     .then(() => self.clients.claim()));
 });
 
-// Nätet först, sparad kopia om nätet saknas.
+// Snabbt: visa sparad kopia direkt och hämta en ny i bakgrunden.
+// När en ny version laddas upp byts VERSION, och då hämtas allt nytt.
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
-  if (e.request.method !== 'GET' || url.origin !== location.origin) return;
-  e.respondWith(
-    fetch(e.request, { cache: 'no-cache' })
-      .then((res) => {
-        const copy = res.clone();
-        caches.open(VERSION).then((c) => c.put(e.request, copy));
-        return res;
-      })
-      .catch(() => caches.match(e.request).then((r) => r || caches.match('./index.html')))
-  );
+  if (e.request.method !== 'GET') return;
+  // Firebase-koden ändras aldrig för en viss version. Spara den för alltid.
+  if (url.hostname === 'www.gstatic.com' && url.pathname.startsWith('/firebasejs/')) {
+    e.respondWith(caches.open('firebase-sdk').then(async (c) => (await c.match(e.request)) || fetch(e.request).then((res) => { if (res.ok) c.put(e.request, res.clone()); return res; })));
+    return;
+  }
+  if (url.origin !== location.origin) return;
+  const isPage = e.request.mode === 'navigate';
+  e.respondWith(caches.open(VERSION).then(async (c) => {
+    const hit = await c.match(e.request, { ignoreSearch: isPage });
+    const fresh = fetch(e.request, { cache: 'no-cache' }).then((res) => {
+      if (res.ok) c.put(e.request, res.clone());
+      return res;
+    });
+    if (hit) { e.waitUntil(fresh.catch(() => {})); return hit; }
+    return fresh.catch(() => c.match('./index.html'));
+  }));
 });
 
 // Påminnelser i telefonen.
