@@ -164,10 +164,10 @@ function writeSummaries(b, uid, profile, entries) {
   } else b.delete(subDoc(uid, 'summary', 'measures'));
 }
 
-export async function addEntry(uid, profile, prevEntries, vals) {
+export async function addEntry(uid, profile, prevEntries, vals, when = null) {
   invalidate('weights', 'measures');
   const ref = doc(sub(uid, 'weights'));
-  const at = Timestamp.now();
+  const at = when ? Timestamp.fromDate(when) : Timestamp.now();
   const b = writeBatch(db);
   const v = { weight: null, arm: null, waist: null, thigh: null, hip: null, ...vals };
   b.set(ref, { at, weight: v.weight });

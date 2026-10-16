@@ -7,6 +7,9 @@ import { esc, fmt1, signed, parseNum, icon, dDay, tHM, dLong, toast, busy, openS
 import { progressInfo } from './overview.js';
 import { loadBlood, addBlood, BLOOD_LIMITS, bloodStatus } from '../blood.js';
 
+// "2026-10-16T17:44" för datetime-local, i telefonens egen tid.
+const localDT = (d) => { const p = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
+
 export async function measureView(el, ctx) {
   const { state } = ctx;
   const uid = state.user.uid;
@@ -25,9 +28,13 @@ export async function measureView(el, ctx) {
       <span style="font-size:17px;font-weight:700">Ny mätning</span>
       <span style="width:44px"></span>
     </div>
-    <div class="stack" style="gap:4px">
-      <h1 style="font-size:26px">${esc(dDay(now))}, ${tHM(now)}</h1>
-      <p class="muted" style="font-size:14px">Datum och tid sparas automatiskt.</p>
+    <div class="stack" style="gap:6px">
+      <h1 style="font-size:26px" data-when>${esc(dDay(now))}, ${tHM(now)}</h1>
+      <div class="row" style="gap:8px;flex-wrap:wrap">
+        <span class="muted" style="font-size:14px" data-whennote>Nu. Glömt att mäta?</span>
+        <button type="button" class="btn ghost sm" data-pickdate style="padding:0;height:32px">Välj annat datum</button>
+      </div>
+      <input type="datetime-local" class="input hidden" data-dt value="${localDT(now)}" max="${localDT(now)}" aria-label="Datum och tid för mätningen" style="max-width:260px">
     </div>
     <form class="stack-lg" novalidate>
       <div class="card flush">
@@ -60,6 +67,22 @@ export async function measureView(el, ctx) {
 
   const form = el.querySelector('form');
   const err = el.querySelector('.error');
+  // Datum: nu, eller ett tidigare datum om man hamnat efter.
+  let when = null;
+  const dtIn = el.querySelector('[data-dt]');
+  el.querySelector('[data-pickdate]').addEventListener('click', (e) => {
+    dtIn.classList.remove('hidden'); e.currentTarget.classList.add('hidden');
+    el.querySelector('[data-whennote]').textContent = 'Välj när du mätte:';
+    try { dtIn.showPicker?.(); } catch { dtIn.focus(); }
+  });
+  dtIn.addEventListener('change', () => {
+    const d = dtIn.value ? new Date(dtIn.value) : null;
+    if (!d || isNaN(d)) return;
+    if (d > new Date()) { dtIn.value = localDT(new Date()); when = null; toast('Du kan inte välja ett datum framåt i tiden.'); }
+    else when = Math.abs(Date.now() - d.getTime()) < 5 * 60000 ? null : d;
+    const shown = when || new Date();
+    el.querySelector('[data-when]').textContent = `${dDay(shown)}, ${tHM(shown)}`;
+  });
   METRICS.forEach(([key, , unit]) => {
     const input = form.querySelector(`[name=${key}]`);
     const chip = form.querySelector(`[data-delta=${key}]`);
@@ -124,7 +147,7 @@ export async function measureView(el, ctx) {
     if (METRICS.every(([k]) => vals[k] == null) && hasBp) {
       // Bara blodtryck den här gången.
       await busy(form.querySelector('[type=submit]'), async () => {
-        try { await addBlood(null, bp, '', new Date()); toast('Blodtrycket är sparat.'); ctx.go('/blodvarden'); }
+        try { await addBlood(null, bp, '', when || new Date()); toast('Blodtrycket är sparat.'); ctx.go('/blodvarden'); }
         catch (ex) { err.textContent = errorText(ex); err.classList.remove('hidden'); }
       });
       return;
@@ -137,8 +160,14 @@ export async function measureView(el, ctx) {
     }
     await busy(form.querySelector('[type=submit]'), async () => {
       try {
-        const saved = await addEntry(uid, state.profile, entries, vals);
-        if (hasBp) await addBlood(null, bp, '', new Date());
+        const saved = await addEntry(uid, state.profile, entries, vals, when);
+        if (hasBp) await addBlood(null, bp, '', when || new Date());
+        if (when && entries.length && when < entries[entries.length - 1].at) {
+          // Äldre mätning: den hamnar på rätt plats i historiken.
+          toast(`Mätningen är sparad för ${dDay(when)}.`);
+          ctx.go('/historik');
+          return;
+        }
         if (state.profile.startWeight == null) state.profile.startWeight = saved.startWeight;
         const start = state.profile.startWeight;
         let milestone = null;
