@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Viktresan – appen och butiken för en lättare vardag</title>
+<meta name="description" content="Viktresan är en gratis app för vikt, mått, kost och träning. I vår butik hittar du utvalda prylar som hjälper dig på vägen.">
+<meta name="theme-color" content="#FAF8FB">
+<link rel="canonical" href="https://viktresan.online/butik/">
+<meta property="og:title" content="Viktresan – appen och butiken">
+<meta property="og:description" content="Gratis app för din viktresa, och utvalda prylar som hjälper dig på vägen.">
+<meta property="og:image" content="https://viktresan.online/icons/icon-512.png">
+<meta property="og:url" content="https://viktresan.online/butik/">
+<meta property="og:locale" content="sv_SE">
+<link rel="icon" type="image/svg+xml" href="../icons/icon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="../icons/favicon-32.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/shop.css">
+</head>
+<body>
+<header class="top">
+  <div class="wrap top-in">
+    <a href="#/" class="logo" aria-label="Viktresan, till startsidan"><img src="../icons/icon-192.png" alt="" width="36" height="36"><span>Viktresan</span></a>
+    <nav class="nav" aria-label="Meny">
+      <a href="#/" data-nav="home">Hem</a>
+      <a href="#/butik" data-nav="shop">Butik</a>
+      <a href="/" class="nav-app">Öppna appen</a>
+    </nav>
+    <button class="cart-btn" data-opencart aria-label="Varukorg">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14l-1.4 11.2a2 2 0 0 1-2 1.8H8.4a2 2 0 0 1-2-1.8z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg>
+      <span class="cart-count hidden" data-count>0</span>
+    </button>
+  </div>
+</header>
+<main id="app" class="wrap"><div class="loading">Laddar…</div></main>
+<footer class="foot">
+  <div class="wrap foot-in">
+    <div class="foot-col">
+      <div class="logo"><img src="../icons/icon-192.png" alt="" width="30" height="30"><span>Viktresan</span></div>
+      <p class="muted small">Gratis app för vikt, mått, kost och träning. Och en liten butik med saker som hjälper på vägen.</p>
+    </div>
+    <div class="foot-col">
+      <b>Butiken</b>
+      <a href="#/butik">Alla produkter</a>
+      <a href="#/villkor">Köpvillkor</a>
+      <a href="#/villkor#retur">Ångerrätt och retur</a>
+    </div>
+    <div class="foot-col">
+      <b>Om oss</b>
+      <a href="#/kontakt">Kontakt</a>
+      <a href="#/integritet">Integritet</a>
+      <a href="/">Appen</a>
+    </div>
+  </div>
+  <div class="wrap foot-legal small muted">Techcom Consulting AB · techcomconsultingab@gmail.com · Alla priser inkl. moms</div>
+</footer>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script type="module" src="js/shop.js"></script>
+</body>
+</html>

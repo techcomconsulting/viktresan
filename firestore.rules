@@ -202,6 +202,20 @@ service cloud.firestore {
       }
     }
 
+    // Butiken (shop.viktresan.online). Alla får se aktiva produkter, även utan konto.
+    match /products/{id} {
+      allow read: if resource.data.active == true || isAdmin();
+      allow write: if isAdmin();
+    }
+    // Inköpspris, leverantör och länk. Bara admin.
+    match /productsPrivate/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /shop/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // Reklamlänkar (Tips och prylar). Alla inloggade läser, bara admin ändrar.
     match /tips/{id} {
       allow read: if signedIn();

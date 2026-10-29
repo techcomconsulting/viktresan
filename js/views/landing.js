@@ -78,7 +78,8 @@ export async function landingView(el) {
   el.innerHTML = `<div class="screen no-nav" style="gap:28px;max-width:560px">
     <section class="stack-lg" style="gap:18px">
       <div class="row" style="gap:10px"><img src="icons/icon-192.png" alt="" width="40" height="40" style="border-radius:12px"><b style="font-size:20px">Viktresan</b>
-        <a href="#/login" class="btn ghost sm" style="margin-left:auto">Logga in</a></div>
+        <a href="/butik/" class="btn ghost sm" style="margin-left:auto">Butik</a>
+        <a href="#/login" class="btn ghost sm">Logga in</a></div>
       <h1 style="font-size:36px;line-height:1.08">Gå ner i vikt.<br><span style="color:var(--accent)">Tillsammans.</span></h1>
       <p style="font-size:18px;line-height:1.45;color:var(--muted)">Följ vikt, mått, kost och blodvärden. Peppa varandra i familjen. Du väljer själv vad du delar.</p>
       ${cta(true)}
