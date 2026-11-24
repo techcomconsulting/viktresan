@@ -11,7 +11,7 @@ const mini = (html, extra = '') => `<div style="background:#fff;border-radius:16
 
 const spark = `<svg viewBox="0 0 200 60" width="100%" height="60" aria-hidden="true">
   <path d="M0 12 C30 14 40 22 60 24 S100 30 120 38 S170 46 200 50 L200 60 L0 60 Z" fill="#F3EEFA"/>
-  <path d="M0 12 C30 14 40 22 60 24 S100 30 120 38 S170 46 200 50" fill="none" stroke="#7B5EA7" stroke-width="3" stroke-linecap="round"/>
+  <path class="line" d="M0 12 C30 14 40 22 60 24 S100 30 120 38 S170 46 200 50" fill="none" stroke="#7B5EA7" stroke-width="3" stroke-linecap="round"/>
   <circle cx="200" cy="50" r="4" fill="#7B5EA7"/></svg>`;
 
 const heroPhone = phone(`
@@ -46,7 +46,7 @@ const FEATURES = [
   ['Märken och utmaningar', 'Få märken och konfetti när du klarar ett delmål. Utmana familjen – vem går ner flest procent? Appen visar också när du når ditt mål.',
     mini(`<div class="row" style="gap:8px;font-size:26px;justify-content:center">🌱 💪 ⭐ 📏 🔥</div>
       <div class="stack" style="gap:4px;margin-top:8px">${[['🥇', 'Anna', '−4,1 %'], ['🥈', 'Martin', '−3,6 %'], ['🥉', 'Bo', '−2,2 %']].map(([m, n, v]) => `<div class="between" style="font-size:14px"><span>${m} ${n}</span><b style="color:var(--accent)">${v}</b></div>`).join('')}</div>`)],
-  ['Blodvärden och blodtryck', 'Skriv in blodsocker, kolesterol, blodtryck och puls. Se hur värdena förbättras när du går ner i vikt.',
+  ['Blodvärden och blodtryck', 'Skriv in blodsocker, kolesterol, blodtryck och puls. Följ hur värdena ändras över tid.',
     mini(`<div class="between" style="align-items:baseline"><span class="small muted">Långtidssocker</span><span class="chip" style="background:#E6F2EC;color:#1F5A41;font-size:11px">Inom normal</span></div>
       <div style="font-size:24px;font-weight:700">40 <span class="small muted">mmol/mol</span></div>
       <svg viewBox="0 0 200 50" style="width:100%;height:auto;display:block" aria-hidden="true"><rect x="0" y="22" width="200" height="28" rx="6" fill="#E6F2EC"/><polyline points="8,8 100,20 192,34" fill="none" stroke="#7B5EA7" stroke-width="3" stroke-linecap="round"/><circle cx="192" cy="34" r="4.5" fill="#fff" stroke="#7B5EA7" stroke-width="3"/></svg>`)],
@@ -70,78 +70,186 @@ export const FAQ = [
   ['Ersätter appen läkare eller dietist?', 'Nej. Kalorier och mål är uppskattningar. Prata med vården innan du gör stora förändringar.']
 ];
 
-export async function landingView(el) {
-  const cta = (big) => `<div class="stack" style="gap:10px">
-    <a class="btn primary block" href="#/registrera" style="${big ? 'height:56px;font-size:18px' : ''}">Skapa konto gratis</a>
-    <a class="btn outline block" href="#/login">Jag har redan ett konto</a></div>`;
 
-  el.innerHTML = `<div class="screen no-nav" style="gap:28px;max-width:560px">
-    <section class="stack-lg" style="gap:18px">
-      <div class="row" style="gap:10px"><img src="icons/icon-192.png" alt="" width="40" height="40" style="border-radius:12px"><b style="font-size:20px">Viktresan</b>
-        <a href="/butik/" class="btn ghost sm" style="margin-left:auto">Butik</a>
-        <a href="#/login" class="btn ghost sm">Logga in</a></div>
-      <h1 style="font-size:36px;line-height:1.08">Gå ner i vikt.<br><span style="color:var(--accent)">Tillsammans.</span></h1>
-      <p style="font-size:18px;line-height:1.45;color:var(--muted)">Följ vikt, mått, kost och blodvärden. Peppa varandra i familjen. Du väljer själv vad du delar.</p>
-      ${cta(true)}
-      <div class="row" style="gap:14px;flex-wrap:wrap;font-size:14px;color:var(--muted)">
-        <span class="row" style="gap:4px">${icon('check', 16, 2.4)}Gratis</span>
-        <span class="row" style="gap:4px">${icon('check', 16, 2.4)}Privat</span>
-        <span class="row" style="gap:4px">${icon('check', 16, 2.4)}Ingen spårning</span>
-      </div>
-    </section>
+// ---------- Ny startsida (premium) ----------
+// En riktig bild eller film kan läggas in här senare, t.ex. 'assets/hero.webp'. Tomt = tecknad natur.
+const HERO_PHOTO = '';
 
-    <div style="padding:6px 0 10px">${heroPhone}</div>
+const tick = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>`;
+const arrow = `<svg class="arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>`;
 
-    <section class="stack-lg">
-      <h2 style="font-size:24px">Så fungerar det</h2>
-      ${[['1', 'Skapa ett konto', 'Det tar en minut. Ingen app att ladda ner.'],
-         ['2', 'Väg och mät dig', 'Skriv in din vikt och dina mått när du vill.'],
-         ['3', 'Dela om du vill', 'Bjud in familj och vänner. Peppa varandra.']].map(([n, t, d]) => `
-        <div class="row" style="gap:14px;align-items:flex-start">
-          <span style="width:40px;height:40px;border-radius:20px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;flex-shrink:0">${n}</span>
-          <div class="stack" style="gap:2px"><b style="font-size:17px">${t}</b><span class="muted" style="font-size:15px">${d}</span></div></div>`).join('')}
-    </section>
+// Tecknat landskap: en stig genom gröna kullar, en prick som vandrar längs stigen.
+const scene = `<svg class="scene" viewBox="0 0 400 440" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+  <defs>
+    <linearGradient id="lpSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F4EFE3"/><stop offset="1" stop-color="#E3EFE3"/></linearGradient>
+    <linearGradient id="lpH1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A9D3BC"/><stop offset="1" stop-color="#8CC2A5"/></linearGradient>
+    <linearGradient id="lpH2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5E9C7C"/><stop offset="1" stop-color="#4A8566"/></linearGradient>
+    <linearGradient id="lpH3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2E5C47"/><stop offset="1" stop-color="#1E3B2F"/></linearGradient>
+  </defs>
+  <rect width="400" height="440" fill="url(#lpSky)"/>
+  <circle class="sun" cx="300" cy="92" r="38" fill="#F6D9A8" opacity=".9"/>
+  <g class="cloud" opacity=".9"><ellipse cx="60" cy="70" rx="38" ry="12" fill="#fff"/><ellipse cx="82" cy="62" rx="22" ry="12" fill="#fff"/></g>
+  <g class="cloud c2" opacity=".75"><ellipse cx="40" cy="128" rx="30" ry="9" fill="#fff"/><ellipse cx="58" cy="122" rx="16" ry="9" fill="#fff"/></g>
+  <path d="M0 230 C70 190 140 205 210 220 S340 185 400 200 L400 440 L0 440 Z" fill="url(#lpH1)"/>
+  <path d="M0 290 C90 250 170 270 250 285 S360 262 400 272 L400 440 L0 440 Z" fill="url(#lpH2)"/>
+  <g fill="#2E5C47">${[[46, 262], [70, 256], [330, 252], [356, 258], [304, 260]].map(([x, y]) => `<path d="M${x} ${y} l9 -26 l9 26 z"/><rect x="${x + 7.5}" y="${y}" width="3" height="7"/>`).join('')}</g>
+  <path d="M0 350 C110 320 200 345 290 360 S370 350 400 352 L400 440 L0 440 Z" fill="url(#lpH3)"/>
+  <path id="lpPath" d="M40 440 C90 400 200 395 170 350 S120 300 210 285 S300 262 268 238" fill="none" stroke="#F4EFE3" stroke-width="7" stroke-linecap="round" opacity=".85" stroke-dasharray="1 12"/>
+  <g class="walker"><circle r="7" fill="#fff"/><circle r="4" fill="#1E3B2F"/>
+    <animateMotion dur="14s" repeatCount="indefinite" rotate="0" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#lpPath"/></animateMotion></g>
+</svg>`;
 
-    <section class="stack-lg">
-      <h2 style="font-size:24px">Det här kan du göra</h2>
-      ${FEATURES.map(([t, d, pic]) => `<div class="card stack" style="gap:12px;background:linear-gradient(180deg,#fff,#FBF9FD)">
-        ${pic}
-        <div class="stack" style="gap:4px"><b style="font-size:18px">${t}</b><span class="muted" style="font-size:15px;line-height:1.45">${d}</span></div></div>`).join('')}
-    </section>
-
-    <section class="card stack-lg" style="background:var(--accent-soft);box-shadow:none">
-      <div class="row" style="gap:10px;color:var(--accent-ink)">${icon('lock', 26)}<h2 style="font-size:22px;color:var(--accent-ink)">Tryggt och privat</h2></div>
-      ${['Allt du sparar är <b>privat</b> från början.',
-         'Du väljer <b>vem</b> som får se <b>vad</b>. Vikt, mått, kost, bilder – var för sig.',
-         'Du kan dela <b>bara procent</b>, utan att visa kilo.',
-         'Vi följer <b>GDPR</b>. Allt sparas i <b>EU</b>, och du kan ladda ner och radera allt när du vill.'].map((t) => `
-        <div class="row" style="gap:10px;align-items:flex-start;font-size:16px;line-height:1.45;color:var(--accent-ink)"><span style="flex-shrink:0;margin-top:2px">${icon('check', 20, 2.4)}</span><span>${t}</span></div>`).join('')}
-      <a href="#/integritet" style="font-weight:600">Läs mer om integritet</a>
-    </section>
-
-    <section class="stack-lg">
-      <h2 style="font-size:24px">Vanliga frågor</h2>
-      <div class="card flush">
-        ${FAQ.map(([q, a], i) => `<details style="${i ? 'border-top:1px solid var(--line);' : ''}">
-          <summary style="list-style:none;cursor:pointer;padding:16px 18px;font-weight:600;font-size:16px;display:flex;justify-content:space-between;gap:10px;align-items:center">${q}<span aria-hidden="true" style="color:var(--accent);font-size:22px;line-height:1">+</span></summary>
-          <p style="padding:0 18px 16px;font-size:15px;line-height:1.5;color:var(--muted)">${a}</p></details>`).join('')}
-      </div>
-    </section>
-
-    <section class="card stack-lg" style="text-align:center;background:linear-gradient(135deg,#F6EEFA,#FCEFF4);box-shadow:none">
-      <h2 style="font-size:24px">Redo att börja?</h2>
-      <p class="muted" style="font-size:16px">Det är gratis och tar en minut.</p>
-      ${cta(false)}
-    </section>
-
-    <section class="stack-lg">
-      <h2 style="font-size:20px">Känner du någon som vill följa med?</h2>
-      ${socialButtons(SITE, 'Viktresan – en gratis app för att gå ner i vikt tillsammans 💜')}
-    </section>
-
-    <footer class="stack" style="gap:6px;text-align:center;font-size:13px;color:var(--muted);padding-bottom:12px">
-      <span>Viktresan görs av ${COMPANY}</span>
-      <span><a href="#/villkor">Villkor</a> · <a href="#/integritet">Integritet</a> · <a href="mailto:${CONTACT}">Kontakt</a></span>
-    </footer>
+const featureRow = (kicker, title, points, art, flip) => `
+  <div class="lp-feature${flip ? ' flip' : ''}">
+    <div class="lp-feature-art draw" data-reveal><span class="lp-tag">Exempel</span>${art}</div>
+    <div data-reveal>
+      <span class="lp-kicker">${kicker}</span>
+      <h3>${title}</h3>
+      <ul>${points.map((p) => `<li>${tick}<span>${p}</span></li>`).join('')}</ul>
+    </div>
   </div>`;
+
+export async function landingView(el) {
+  const F = Object.fromEntries(FEATURES.map(([t, d, pic]) => [t, { d, pic }]));
+  el.innerHTML = `<div class="lp">
+  <header class="lp-top"><div class="lp-wrap lp-top-in">
+    <a class="lp-logo" href="#/valkommen"><img src="icons/icon-192.png" alt="" width="36" height="36">Viktresan</a>
+    <a href="/butik/" class="lp-link hide-s">Butik</a>
+    <a href="#/login" class="lp-link">Logga in</a>
+  </div></header>
+
+  <div class="lp-wrap">
+    <section class="lp-hero">
+      <div data-reveal>
+        <span class="lp-eyebrow"><i></i>Webbapp för iPhone, Android och dator</span>
+        <h1>Din viktresa.<br><span>Ditt tempo.</span></h1>
+        <p class="lp-lead">Följ vikt, kost, mått och hälsa på ett och samma ställe. Samla dina framsteg och gör resan enklare tillsammans.</p>
+        <div class="lp-ctas">
+          <a class="lp-btn primary" href="#/registrera">Börja din resa ${arrow}</a>
+          <a class="lp-btn ghost" href="#/login">Jag har redan ett konto</a>
+        </div>
+        <div class="lp-trust"><span>${tick}Privat från början</span><span>${tick}Data sparas i EU</span><span>${tick}Ingen spårning</span></div>
+      </div>
+      <div class="lp-art" data-reveal>
+        ${HERO_PHOTO ? `<img class="photo" src="${HERO_PHOTO}" alt="" loading="eager" decoding="async">` : scene}
+        <span class="lp-tag">Exempel</span>
+        <div class="lp-float a">🏅 Nytt märke</div>
+        <div class="lp-float b">💚 Peppad av familjen</div>
+        <div class="lp-phone">${heroPhone}</div>
+      </div>
+    </section>
+
+    <section class="lp-sec" style="padding-top:24px">
+      <div data-reveal><span class="lp-kicker">Viktresan i korthet</span>
+        <h2 class="lp-h2">Allt du behöver för resan, på ett ställe.</h2></div>
+      <div class="lp-pillars">
+        ${[['1', 'Följ din vikt och utveckling', 'Väg dig och mät dig när du vill. Se hela resan i grafer och procent.'],
+           ['2', 'Registrera kost och hälsovärden', 'Skriv in dina måltider, vatten och träning. Följ blodtryck och andra värden över tid.'],
+           ['3', 'Gör resan tillsammans', 'Bjud in familj och vänner. Peppa varandra och välj själv vad ni delar.']]
+          .map(([n, t, d]) => `<div class="lp-pillar" data-reveal><span class="n">${n}</span><h3>${t}</h3><p>${d}</p></div>`).join('')}
+      </div>
+    </section>
+
+    <section class="lp-sec" style="padding-top:8px">
+      ${featureRow('Viktutveckling', 'Se din resa ta form.',
+        ['Väg dig och mät midja, höft, arm och lår.', 'Följ utvecklingen i en tydlig graf.', 'Lägg in en mätning i efterhand om du hamnat efter.'], F['Vikt och mått'].pic, false)}
+      ${featureRow('Framsteg och mål', 'Fira varje steg på vägen.',
+        ['Märken och konfetti när du når ett delmål.', 'Utmana familjen – vem går ner flest procent?', 'Se när du beräknas nå ditt mål.'], F['Märken och utmaningar'].pic, true)}
+      ${featureRow('Kost och registrering', 'Koll på maten, utan krångel.',
+        ['Registrera dina måltider och följ kalorier, protein och vatten.', 'Skanna streckkoden på förpackningen.', 'Saknas en vara? Lägg till den själv på några sekunder.'],
+        `${F['Kost och vatten'].pic}${F['Skanna streckkoden'].pic}`, false)}
+      ${featureRow('Hälsa och statistik', 'Dina värden, samlade över tid.',
+        ['Följ blodsocker, kolesterol, blodtryck och puls.', 'Gör en sammanfattning till vården som PDF eller länk.', 'Du bestämmer själv vad som tas med.'],
+        `${F['Blodvärden och blodtryck'].pic}${F['Rapport till vården'].pic}`, true)}
+      ${featureRow('Tillsammans', 'Lättare när man inte är ensam.',
+        ['Dela med familj och vänner – bara det du väljer.', 'Skriv inlägg, kommentera och ge hjärtan.', 'Dela bara procent om du inte vill visa kilo.'], F['Peppa varandra'].pic, false)}
+
+      <div data-reveal style="margin-top:24px"><h3 style="font-size:24px;font-weight:800">Och lite till</h3></div>
+      <div class="lp-more">
+        ${['Träning', 'Bilder och behandling'].map((t) => `<div data-reveal><b>${t}</b><span>${F[t].d}</span></div>`).join('')}
+        <div data-reveal><b>Recept och mediciner</b><span>Spara dina recept och kryssa i när du har tagit din medicin.</span></div>
+      </div>
+    </section>
+
+    <section class="lp-story" data-reveal>
+      <span class="glow" aria-hidden="true"></span>
+      <span class="lp-kicker" style="color:var(--lp-mint)">Varför Viktresan</span>
+      <h2 style="margin-top:10px">Det handlar inte bara om kilon. <em>Det handlar om att må bättre.</em></h2>
+      <p class="lp-sub">Varje resa ser olika ut. Viktresan hjälper dig att se dina framsteg, hitta vanor som håller och få stöd av dem du tycker om.</p>
+      <div class="lp-values">
+        ${[['🌱', 'Små framsteg', 'Varje litet steg räknas – och syns.'], ['🔁', 'Hållbara vanor', 'Vanor du kan leva med, i ditt eget tempo.'],
+           ['🔥', 'Motivation', 'Märken, mål och pepp från familjen.'], ['🧭', 'Din egen resa', 'Ingen jämför – det är din väg.']]
+          .map(([i, t, d]) => `<div data-reveal><span class="ic">${i}</span><b>${t}</b><span>${d}</span></div>`).join('')}
+      </div>
+    </section>
+
+    <section class="lp-sec">
+      <div data-reveal><span class="lp-kicker">Kom igång</span><h2 class="lp-h2">Tre steg. En minut.</h2></div>
+      <div class="lp-steps">
+        ${[['Skapa ett konto', 'Det tar en minut. Inget att ladda ner.'], ['Väg och mät dig', 'Skriv in din vikt och dina mått när du vill.'], ['Dela om du vill', 'Bjud in familj och vänner och peppa varandra.']]
+          .map(([t, d]) => `<div class="lp-step" data-reveal><b>${t}</b><span>${d}</span></div>`).join('')}
+      </div>
+    </section>
+
+    <section class="lp-safe" data-reveal>
+      <div><span class="lp-kicker">Tryggt och privat</span><h2 class="lp-h2" style="font-size:clamp(28px,4vw,44px)">Dina uppgifter är dina.</h2>
+        <p class="lp-sub" style="font-size:17px"><a href="#/integritet" style="font-weight:700">Läs integritetspolicyn</a> · <a href="#/villkor" style="font-weight:700">Villkor</a></p></div>
+      <ul>
+        ${['Allt du sparar är <b>privat</b> från början.', 'Du väljer <b>vem</b> som får se <b>vad</b> – vikt, mått, kost och bilder var för sig.',
+           'Du kan dela <b>bara procent</b>, utan att visa kilo.', 'Vi följer <b>GDPR</b>. Allt sparas i <b>EU</b>, och du kan ladda ner och radera allt när du vill.']
+          .map((t) => `<li>${tick}<span>${t}</span></li>`).join('')}
+      </ul>
+    </section>
+
+    <section class="lp-sec">
+      <div data-reveal><span class="lp-kicker">Webbapp</span><h2 class="lp-h2">Lägg appen på hemskärmen.</h2>
+        <p class="lp-sub">Viktresan är en webbapp. Den fungerar direkt i webbläsaren och kan läggas på hemskärmen som en vanlig app.</p></div>
+      <div class="lp-install">
+        <div data-reveal><b> iPhone och iPad</b><span>Öppna viktresan.online i <b>Safari</b>, tryck på dela-knappen och välj <b>Lägg till på hemskärmen</b>.</span></div>
+        <div data-reveal><b>Android</b><span>Öppna viktresan.online i <b>Chrome</b>, tryck på menyn ⋮ och välj <b>Lägg till på startskärmen</b>.</span></div>
+      </div>
+    </section>
+
+    <section class="lp-sec" style="padding-top:8px">
+      <div data-reveal><span class="lp-kicker">Frågor och svar</span><h2 class="lp-h2">Vanliga frågor</h2></div>
+      <div class="lp-faq" data-reveal>
+        ${FAQ.map(([q, a]) => `<details><summary>${q}<i aria-hidden="true">+</i></summary><p>${a}</p></details>`).join('')}
+      </div>
+    </section>
+
+    <section class="lp-final">
+      <div data-reveal><span class="lp-kicker">Redo?</span><h2 class="lp-h2">Börja din resa idag.</h2>
+        <p class="lp-sub">Det tar en minut att komma igång.</p>
+        <div class="lp-ctas"><a class="lp-btn primary" href="#/registrera">Börja din resa ${arrow}</a><a class="lp-btn ghost" href="#/login">Logga in</a></div></div>
+      <div class="lp-share" data-reveal><b style="font-size:17px">Känner du någon som vill följa med?</b>
+        ${socialButtons(SITE, 'Viktresan – en app för att gå ner i vikt tillsammans 💜')}</div>
+    </section>
+  </div>
+
+  <footer class="lp-foot"><div class="lp-wrap">
+    <span>Viktresan görs av ${COMPANY}</span><br>
+    <span><a href="#/villkor">Villkor</a> · <a href="#/integritet">Integritet</a> · <a href="mailto:${CONTACT}">Kontakt</a> · <a href="/butik/">Butik</a></span>
+  </div></footer>
+  </div>`;
+  if (typeof window !== 'undefined' && el.querySelector) wireLanding(el);
+}
+
+// Mjuka animationer när delar kommer in i bild. Respekterar "minska rörelse".
+function wireLanding(el) {
+  const root = el.querySelector('.lp');
+  if (!root) return;
+  root.classList.add('js');
+  const top = root.querySelector('.lp-top');
+  const onScroll = () => top.classList.toggle('scrolled', window.scrollY > 8);
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+  const items = root.querySelectorAll('[data-reveal]');
+  if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    items.forEach((x) => x.classList.add('in'));
+    return;
+  }
+  const io = new IntersectionObserver((entries) => entries.forEach((e) => {
+    if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+  }), { rootMargin: '0px 0px -8% 0px', threshold: 0.12 });
+  items.forEach((x, i) => { x.style.transitionDelay = `${Math.min(i % 4, 3) * 70}ms`; io.observe(x); });
 }
