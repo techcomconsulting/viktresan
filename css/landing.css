@@ -58,12 +58,25 @@
 
 .lp-art { position: relative; aspect-ratio: 4 / 4.4; border-radius: 36px; overflow: hidden; box-shadow: var(--lp-shadow); background: #DCEBDD; }
 .lp-art > svg.scene, .lp-art > img.photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.lp-art .lp-phone { position: absolute; right: 7%; bottom: -6%; width: 54%; z-index: 1; }
+.lp-art .lp-phone { position: absolute; right: 5%; bottom: -8%; width: 46%; z-index: 1; }
 .lp-art .lp-phone > div { max-width: none !important; }
 .lp-tag { position: absolute; left: 14px; top: 14px; background: rgba(255, 255, 255, .82); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); font-size: 12px; font-weight: 700; color: var(--lp-muted); padding: 5px 10px; border-radius: 999px; }
 .lp-float { position: absolute; z-index: 2; background: #fff; border-radius: 18px; box-shadow: var(--lp-shadow); padding: 10px 14px; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
 .lp-float.a { left: 6%; top: 30%; }
 .lp-float.b { left: 5%; bottom: 20%; }
+
+/* Rörliga bilder */
+.lp-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .9s ease; background: transparent; }
+.lp-video.poster-ok, .lp-video.ready { opacity: 1; }
+.lp-video.hero { object-position: 30% center; }
+.lp-shade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgba(22, 36, 29, 0) 45%, rgba(22, 36, 29, .35) 100%); }
+.lp-art .lp-tag { z-index: 2; }
+.lp-moment { position: relative; border-radius: 40px; overflow: hidden; min-height: 460px; margin: 24px 0 72px; background: linear-gradient(135deg, var(--lp-forest), var(--lp-forest-2)); box-shadow: var(--lp-shadow); display: flex; align-items: flex-end; justify-content: flex-end; }
+.lp-moment .lp-video { object-position: 30% center; }
+.lp-moment .lp-shade { background: linear-gradient(270deg, rgba(16, 30, 23, .82) 0%, rgba(16, 30, 23, .45) 45%, rgba(16, 30, 23, .05) 75%); }
+.lp-moment-text { position: relative; z-index: 1; padding: clamp(28px, 5vw, 56px); max-width: 520px; color: #fff; }
+.lp-moment-text h2 { color: #fff; font-size: clamp(32px, 4.6vw, 52px); font-weight: 800; margin-top: 10px; }
+.lp-moment-text p { color: rgba(255, 255, 255, .85); font-size: 18px; line-height: 1.5; margin-top: 12px; }
 
 /* Gemensamt för sektioner */
 .lp-sec { padding: 72px 0; }
@@ -190,7 +203,10 @@
   .lp-trust { gap: 12px; font-size: 14px; }
   .lp-float.a { top: 22%; }
   .lp-art { aspect-ratio: 4 / 4.8; }
-  .lp-art .lp-phone { width: 70%; right: 4%; }
+  .lp-art .lp-phone { width: 62%; right: 4%; }
   .lp-float { font-size: 13px; padding: 8px 11px; }
   .lp-feature-art { padding-top: 44px; }
+  .lp-moment { min-height: 520px; border-radius: 30px; justify-content: flex-start; }
+  .lp-moment .lp-video { object-position: 38% center; }
+  .lp-moment .lp-shade { background: linear-gradient(180deg, rgba(16, 30, 23, .05) 20%, rgba(16, 30, 23, .8) 100%); }
 }

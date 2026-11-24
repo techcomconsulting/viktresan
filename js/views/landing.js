@@ -99,6 +99,11 @@ const scene = `<svg class="scene" viewBox="0 0 400 440" preserveAspectRatio="xMi
     <animateMotion dur="14s" repeatCount="indefinite" rotate="0" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#lpPath"/></animateMotion></g>
 </svg>`;
 
+// Rörlig bild: laddas först när den syns, utan ljud. Stillbilden visas tills filmen är redo.
+// Klippen kommer från Mixkit (fri licens) och ligger i assets/video/.
+const video = (name, cls = '') => `<video class="lp-video ${cls}" muted playsinline loop preload="none" aria-hidden="true" tabindex="-1"
+  data-video="${name}" data-poster="assets/video/${name}.jpg"></video>`;
+
 const featureRow = (kicker, title, points, art, flip) => `
   <div class="lp-feature${flip ? ' flip' : ''}">
     <div class="lp-feature-art draw" data-reveal><span class="lp-tag">Exempel</span>${art}</div>
@@ -132,6 +137,7 @@ export async function landingView(el) {
       </div>
       <div class="lp-art" data-reveal>
         ${HERO_PHOTO ? `<img class="photo" src="${HERO_PHOTO}" alt="" loading="eager" decoding="async">` : scene}
+        ${video('jogga', 'hero')}<span class="lp-shade" aria-hidden="true"></span>
         <span class="lp-tag">Exempel</span>
         <div class="lp-float a">🏅 Nytt märke</div>
         <div class="lp-float b">💚 Peppad av familjen</div>
@@ -168,6 +174,16 @@ export async function landingView(el) {
       <div class="lp-more">
         ${['Träning', 'Bilder och behandling'].map((t) => `<div data-reveal><b>${t}</b><span>${F[t].d}</span></div>`).join('')}
         <div data-reveal><b>Recept och mediciner</b><span>Spara dina recept och kryssa i när du har tagit din medicin.</span></div>
+      </div>
+    </section>
+
+    <section class="lp-moment" data-reveal>
+      ${video('trana')}
+      <span class="lp-shade" aria-hidden="true"></span>
+      <div class="lp-moment-text">
+        <span class="lp-kicker" style="color:var(--lp-mint)">Rörelse på ditt sätt</span>
+        <h2>Promenad, löpning eller gym.</h2>
+        <p>Lägg in din träning och se hur den påverkar dagen. Allt räknas.</p>
       </div>
     </section>
 
@@ -228,7 +244,7 @@ export async function landingView(el) {
 
   <footer class="lp-foot"><div class="lp-wrap">
     <span>Viktresan görs av ${COMPANY}</span><br>
-    <span><a href="#/villkor">Villkor</a> · <a href="#/integritet">Integritet</a> · <a href="mailto:${CONTACT}">Kontakt</a> · <a href="/butik/">Butik</a></span>
+    <span><a href="#/villkor">Villkor</a> · <a href="#/integritet">Integritet</a> · <a href="mailto:${CONTACT}">Kontakt</a> · <a href="/butik/">Butik</a></span><br><span style="font-size:12px">Filmer: Mixkit</span>
   </div></footer>
   </div>`;
   if (typeof window !== 'undefined' && el.querySelector) wireLanding(el);
@@ -243,6 +259,7 @@ function wireLanding(el) {
   const onScroll = () => top.classList.toggle('scrolled', window.scrollY > 8);
   window.addEventListener('scroll', onScroll, { passive: true });
   onScroll();
+  wireVideos(root);
   const items = root.querySelectorAll('[data-reveal]');
   if (!('IntersectionObserver' in window) || matchMedia('(prefers-reduced-motion: reduce)').matches) {
     items.forEach((x) => x.classList.add('in'));
@@ -252,4 +269,35 @@ function wireLanding(el) {
     if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
   }), { rootMargin: '0px 0px -8% 0px', threshold: 0.12 });
   items.forEach((x, i) => { x.style.transitionDelay = `${Math.min(i % 4, 3) * 70}ms`; io.observe(x); });
+}
+
+// Filmerna startar först när de syns och pausas när de inte syns (sparar batteri och data).
+// Ingen film om man valt "minska rörelse" eller "spara data" – då visas bara stillbilden.
+function wireVideos(root) {
+  const vids = [...root.querySelectorAll('video[data-video]')];
+  if (!vids.length) return;
+  const calm = matchMedia('(prefers-reduced-motion: reduce)').matches || navigator.connection?.saveData;
+  const load = (v) => {
+    if (v.dataset.loaded) return;
+    v.dataset.loaded = '1';
+    v.poster = v.dataset.poster;
+    const img = new Image();
+    img.onload = () => v.classList.add('poster-ok');
+    img.src = v.dataset.poster;
+    if (calm) return;
+    for (const [ext, type] of [['webm', 'video/webm'], ['mp4', 'video/mp4']]) {
+      const src = document.createElement('source');
+      src.src = `assets/video/${v.dataset.video}.${ext}`; src.type = type;
+      v.appendChild(src);
+    }
+    v.addEventListener('playing', () => v.classList.add('ready'), { once: true });
+    v.load();
+  };
+  if (!('IntersectionObserver' in window)) { vids.forEach((v) => { load(v); if (!calm) v.play().catch(() => {}); }); return; }
+  const io = new IntersectionObserver((entries) => entries.forEach((e) => {
+    const v = e.target;
+    if (e.isIntersecting) { load(v); if (!calm) v.play().catch(() => {}); }
+    else if (!v.paused) v.pause();
+  }), { rootMargin: '200px 0px', threshold: 0.01 });
+  vids.forEach((v) => io.observe(v));
 }
